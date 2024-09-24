@@ -5,8 +5,7 @@
 	import Target from './Target.svelte'
 	import { createBoundPoints, isInsidePoly, normalize, Vec2D } from './utils'
 	import Bouning from './Bouning.svelte'
-	import { Genome, NEAT } from './NEAT/NEAT'
-	import { KANNetwork } from './NEAT/kan'
+	import { Genome, NEAT } from './NEAT/NEATNN'
 
 	export let w = 800
 	export let h = 600
@@ -30,17 +29,17 @@
 		dir = randomNumber(0, 360)
 
 		seek(target: number[]) {
-			// const normalized = target.map((v) => normalize(v, 0, 700))
-			const out = this.network.forward(target)
+			const normalized = [x, y, dir, ...target].map((v) => normalize(v, 0, 700))
+			const out = this.network.forward(normalized)
 			const rad = (Math.PI / 180) * (this.dir - 90)
-			if (out[0] > 0) {
+			if (out[0] > 0.5) {
 				this.x += Math.cos(rad) * speed
 				this.y += Math.sin(rad) * speed
 			}
-			if (out[1] > 0) {
+			if (out[1] > 0.5) {
 				this.dir -= turnRate
 			}
-			if (out[1] < 0) {
+			if (out[1] < 0.5) {
 				this.dir += turnRate
 			}
 			return [this.x, this.y]
@@ -63,7 +62,7 @@
 		return fit * fit
 	}
 
-	const simulation = new NEAT(5, 5, 2, 100, 0.1, fitnessFunction, (brain) => new Spider(brain))
+	const simulation = new NEAT(5, 2, 100, fitnessFunction, (brain) => new Spider(brain))
 
 	let generations = 0
 	let bestAgent: Spider | undefined
@@ -72,6 +71,9 @@
 			simulation.evolve()
 			bestAgent = simulation.getBestGenome()
 			generations = simulation.getGeneration()
+			if (generations % 150 === 0) {
+				console.log(bestAgent)
+			}
 		} else if (bestAgent) {
 			bestAgent.seek([xT, yT])
 		}
