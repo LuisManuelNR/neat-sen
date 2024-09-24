@@ -6,7 +6,9 @@
 	export let direction = 0
 </script>
 
-<img src={spider} style:translate="{x}px {y}px" style:rotate="{direction}deg" alt="spider" />
+<img src={spider} style:translate="{x - 50}px {y - 50}px" style:rotate="{direction}deg" alt="spider" />
+
+<!-- <img src={spider} style:translate="{x}px {y}px" style:rotate="{direction}deg" alt="spider" /> -->
 
 <style>
 	img {
