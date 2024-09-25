@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { pannable } from '@chasi/ui/actions'
 	import { runOnFrames, randomNumber } from '@chasi/ui/utils'
 	import { onMount } from 'svelte'
 	import Creature from './Creature.svelte'
@@ -9,19 +10,20 @@
 	export let w = 800
 	export let h = 600
 
-	let simulate = false
+	let simulate = true
 	const speed = 5
 	const turnRate = 10
 
-	let xT = randomNumber(0, 700)
-	let yT = randomNumber(0, 500)
+	let xT = 1000
+	let yT = 400
 
 	type SpiderBrain = ReturnType<typeof simulation.getPopulation>[number]
 
 	class Spider {
-		x = 200
-		y = 200
-		dir = randomNumber(0, 360)
+		x = randomNumber(0, 300)
+		y = randomNumber(0, h)
+		dir = 90
+		recorrido: number = 0
 		brain: SpiderBrain
 
 		constructor(b: SpiderBrain) {
@@ -29,44 +31,44 @@
 		}
 
 		seek(target: number[]) {
-			// const normalized = [x, y, dir, ...target].map((v) => normalize(v, 0, 700))
-			const out = this.brain.process([this.x, this.y, this.dir, ...target])
+			const inputs = [this.recorrido, this.x, this.y, this.dir, ...target]
+			// const normalized = inputs.map((v) => normalize(v, -w, w))
+			const out = this.brain.process(inputs)
+			// console.log('in:', inputs)
+			// console.log('out:', out)
+			if (out[1] > 0) {
+				this.dir -= turnRate
+				this.recorrido++
+			}
+			if (out[1] < 0) {
+				this.dir += turnRate
+				this.recorrido++
+			}
 			const rad = (Math.PI / 180) * (this.dir - 90)
-			if (out[0] > 0.5) {
+			if (out[0] > 0) {
 				this.x += Math.cos(rad) * speed
 				this.y += Math.sin(rad) * speed
+				this.recorrido++
 			}
-			if (out[1] > 0.5) {
-				this.dir -= turnRate
-			}
-			if (out[1] < 0.5) {
-				this.dir += turnRate
-			}
-			this.brain.fitness += fitnessFunction([this.x, this.y])
+			this.brain.fitness += fitnessFunction(this.x, this.y, this.recorrido)
 		}
 	}
 
-	function fitnessFunction(out: number[]) {
-		const targetOutput = [xT, yT]
+	function fitnessFunction(x: number, y: number, recorrido: number) {
 		let distance = 0
-		for (let i = 0; i < out.length; i++) {
-			const error = targetOutput[i] - out[i]
-			distance += error * error // Usamos el error cuadrático para penalizar grandes diferencias
-		}
-
-		// Retornar el fitness, que es inversamente proporcional a la distancia
-		// Cuanto más pequeña la distancia, mayor el fitness
-		const fit = 1 / (1 + distance)
-		return fit * fit
+		distance += Math.pow(xT - x, 2)
+		distance += Math.pow(yT - y, 2)
+		distance += recorrido
+		return 1 / (1 + distance)
 	}
 
-	const POPULATION_SIZE = 50
+	const POPULATION_SIZE = 20
 
 	const simulation = TinyNEAT({
-		maxGenerations: 50,
-		targetSpecies: 10,
+		maxGenerations: 150,
+		targetSpecies: 2,
 		initialPopulationSize: POPULATION_SIZE,
-		inputSize: 5,
+		inputSize: 6,
 		outputSize: 2,
 		compatibilityThreshold: 4.5,
 		addLinkProbability: 0.1,
@@ -74,86 +76,77 @@
 		mutateWeightProbability: 0.4,
 		interspeciesMatingRate: 0.01,
 		largeNetworkSize: 50,
-		maximumStagnation: 10,
+		maximumStagnation: 5,
 		mateByChoosingProbability: 0.6,
-		nnPlugin: plugins.ANNPlugin({ activation: 'posAndNegSigmoid' }),
-		loggingPlugins: []
+		nnPlugin: plugins.ANNPlugin({ activation: 'posAndNegSigmoid' })
+		// loggingPlugins: []
 	})
 
+	let spiders: Spider[] = Array.from(simulation.getPopulation(), (brain) => new Spider(brain))
+	let frames = 0
 	let generations = 0
-	let bestAgent: Spider | undefined
-	let spiders: Spider[] = []
-
 	function update() {
+		frames++
 		if (simulate) {
-			simulation.evolve()
-			const population = simulation.getPopulation()
-			spiders = Array.from(population, (brain) => new Spider(brain))
-			for (let i = 0; i < population.length; i++) {
-				spiders[i].seek([xT, yT])
+			if (frames % 400 === 0) {
+				// xT = randomNumber(900, w)
+				// yT = randomNumber(0, h)
+				simulation.evolve()
+				const population = simulation.getPopulation()
+				generations = simulation.getCurrentGeneration()
+				spiders = Array.from(population, (brain) => new Spider(brain))
+				if (simulation.complete()) {
+					stopSimulation()
+				}
 			}
-			bestAgent = spiders[0]
-			generations = simulation.getCurrentGeneration()
-			if (generations % 150 === 0) {
-				console.log(bestAgent)
-			}
-		} else if (bestAgent) {
-			bestAgent.seek([xT, yT])
-		}
-		if (generations % 50 === 0) {
-			const { x, y } = movimientoAleatorio(xT, yT, w, h, 100)
-			xT = x
-			yT = y
+			spiders.forEach((s, i) => {
+				s.seek([xT, yT])
+				spiders[i] = s
+			})
+		} else {
+			spiders[0].seek([xT, yT])
+			spiders[0] = spiders[0]
 		}
 	}
 
-	function movimientoAleatorio(
-		xActual: number,
-		yActual: number,
-		limiteX: number,
-		limiteY: number,
-		variacionMaxima: number
-	): { x: number; y: number } {
-		// Variaciones aleatorias pero controladas
-		const nuevaX = xActual + (Math.random() * 2 - 1) * variacionMaxima
-		const nuevaY = yActual + (Math.random() * 2 - 1) * variacionMaxima
+	function stopSimulation() {
+		simulate = false
+		spiders = getBestSpiders(spiders, 1)
+	}
 
-		// Asegurar que las nuevas coordenadas estén dentro de los límites
-		const xFinal = Math.max(0, Math.min(limiteX, nuevaX))
-		const yFinal = Math.max(0, Math.min(limiteY, nuevaY))
-
-		return { x: xFinal, y: yFinal }
+	function getBestSpiders(s: Spider[], amounts: number) {
+		return s.toSorted((a, b) => b.brain.fitness - a.brain.fitness).slice(0, amounts)
 	}
 
 	onMount(() => {
-		return runOnFrames(30, update)
+		return runOnFrames(120, update)
 	})
 </script>
 
-{#if simulate}
-	<button class="btn" on:click={() => (simulate = false)}> stop </button>
-{:else}
-	<button class="btn" on:click={() => (simulate = true)}> start </button>
-{/if}
-
-<div class="enviroment s-6" bind:clientWidth={w} style:height="{h}px">
-	<Target x={xT} y={yT}></Target>
-	{#each spiders as spider}
-		<Creature x={spider.x} y={spider.y} direction={spider.dir}></Creature>
-	{/each}
+<div>
+	{#if simulate}
+		<button class="btn error" on:click={stopSimulation}> pause </button>
+	{:else}
+		<button class="btn success" on:click={() => (simulate = true)}> evolve </button>
+	{/if}
+	<p>generations: {generations} fitness: {spiders[0].brain.fitness}</p>
 </div>
 
-<p>generations: {generations}</p>
-{#if bestAgent}
-	<p>fitness: {bestAgent.brain.fitness}</p>
-{/if}
+<div class="enviroment s-6" bind:clientWidth={w} style:height="{h}px">
+	<Target bind:x={xT} bind:y={yT}></Target>
+	{#if !simulate}
+		{@const spider = spiders[0]}
+		<Creature x={spider.x} y={spider.y} direction={spider.dir}></Creature>
+	{:else}
+		{#each spiders as spider}
+			<Creature x={spider.x} y={spider.y} direction={spider.dir}></Creature>
+		{/each}
+	{/if}
+</div>
 
 <style>
 	.enviroment {
 		position: relative;
 		width: 100%;
-	}
-	:global(.debug > *) {
-		outline: 1px solid var(--brand);
 	}
 </style>

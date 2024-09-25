@@ -8,8 +8,6 @@
 
 <img src={spider} style:translate="{x - 50}px {y - 50}px" style:rotate="{direction}deg" alt="spider" />
 
-<!-- <img src={spider} style:translate="{x}px {y}px" style:rotate="{direction}deg" alt="spider" /> -->
-
 <style>
 	img {
 		position: absolute;
@@ -17,5 +15,7 @@
 		left: 0;
 		width: 100px;
 		height: 100px;
+		pointer-events: none;
+		user-select: none;
 	}
 </style>
