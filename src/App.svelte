@@ -1,6 +1,5 @@
 <script lang="ts">
-	import Entorno from './lib/EntornoLib.svelte'
-	// import Entorno from './lib/Entorno.svelte'
+	import Entorno from './lib/Entorno.svelte'
 </script>
 
 <div class="d-grid mt-4">

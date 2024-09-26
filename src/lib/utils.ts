@@ -1,4 +1,4 @@
-import { isInside } from '@chasi/ui/utils'
+import { isInside, randomNumber } from '@chasi/ui/utils'
 
 export function createBoundPoints(points: number, origin: Vec2D, radius: number) {
 	const step = 360 / points // División equitativa de los ángulos
@@ -46,6 +46,19 @@ export class Vec2D {
 	get y() {
 		return this.values[1]
 	}
+	set x(value: number) {
+		this.values[0] = value
+	}
+	set y(value: number) {
+		this.values[1] = value
+	}
+
+	degFromPoint(point: Vec2D) {
+		const deltaX = point.x - this.x
+		const deltaY = point.y - this.y
+		const rad = Math.atan2(deltaY, deltaX)
+		return rad * (180 / Math.PI)
+	}
 }
 
 export function randomGaussian(mean: number, stdDev: number): number {
@@ -53,4 +66,24 @@ export function randomGaussian(mean: number, stdDev: number): number {
 	let u2 = Math.random()
 	let z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2)
 	return z0 * stdDev + mean
+}
+
+export function sigmoid(x: number) {
+	return 1 / (1 + Math.exp(-x))
+}
+
+export function mutation(x: number, rate: number, change: number) {
+	if (randomNumber(0, 1) < rate) {
+		return x + randomGaussian(0, change) //??? ou 0.2
+	} else {
+		return x
+	}
+}
+
+export function randomIndex(arr: Array<any>) {
+	return randomNumber(0, arr.length)
+}
+
+export function relu(x: number): number {
+	return Math.max(0, x) // Función de activación ReLU
 }

@@ -9,29 +9,25 @@ export class Genome {
 	}
 
 	mutate() {
-		this.network.mutateWeights()
-		this.network.mutateTopology()
+		this.network.mutate()
 	}
 }
 
 export class NEAT<T extends Genome> {
-	#population: T[]
+	population: T[]
 	#populationSize: number
 	#generation: number = 0
-	#fitnessFunction: (network: T) => number
 	#createIndividual: (network: Brain) => T
 
 	constructor(
 		inputDim: number,
 		outputDim: number,
 		populationSize: number,
-		fitnessFunction: (network: T) => number,
 		createIndividual: (network: Brain) => T
 	) {
 		this.#populationSize = populationSize
-		this.#fitnessFunction = fitnessFunction
 		this.#createIndividual = createIndividual
-		this.#population = this.#initializePopulation(inputDim, outputDim)
+		this.population = this.#initializePopulation(inputDim, outputDim)
 	}
 
 	#initializePopulation(inputDim: number, outputDim: number): T[] {
@@ -45,32 +41,19 @@ export class NEAT<T extends Genome> {
 
 	evolve() {
 		this.#generation++
-		this.#evaluateFitness()
 		this.#selection()
 		this.#reproduce()
 		this.#mutatePopulation()
 	}
 
-	#evaluateFitness() {
-		// Verificar si alguna mejora en la función de fitness ayuda
-		for (const genome of this.#population) {
-			genome.fitness = this.#fitnessFunction(genome)
-
-			// Asegurarse de que haya diversidad en la población
-			if (genome.fitness === 0) {
-				genome.mutate() // Si no hay mejora en el fitness, mutar el genoma para evitar estancamiento
-			}
-		}
-	}
-
 	#selection() {
 		// Preservar los mejores individuos (elitismo)
 		const elitismCount = Math.floor(0.1 * this.#populationSize) // 10% de la población no será mutada
-		this.#population.sort((a, b) => b.fitness - a.fitness)
+		this.population.sort((a, b) => b.fitness - a.fitness)
 
 		// Mantener el elitismo y luego realizar la selección normal para el resto
-		const elitists = this.#population.slice(0, elitismCount)
-		const rest = this.#population.slice(elitismCount, this.#populationSize)
+		const elitists = this.population.slice(0, elitismCount)
+		const rest = this.population.slice(elitismCount, this.#populationSize)
 
 		// Selección por ranking para el resto de la población
 		const selected = []
@@ -80,13 +63,13 @@ export class NEAT<T extends Genome> {
 
 			// Evitar que los padres sean idénticos
 			if (parentA !== parentB) {
-				const childBrain = Brain.crossover(parentA.network, parentB.network)
+				const childBrain = parentA.network.crossover(parentB.network)
 				const child = this.#createIndividual(childBrain)
 				selected.push(child)
 			}
 		}
 
-		this.#population = [...elitists, ...selected]
+		this.population = [...elitists, ...selected]
 	}
 
 	#reproduce() {
@@ -94,23 +77,23 @@ export class NEAT<T extends Genome> {
 		for (let i = 0; i < this.#populationSize; i++) {
 			const parentA = this.#selectRandomGenome()
 			const parentB = this.#selectRandomGenome()
-			const childBrain = Brain.crossover(parentA.network, parentB.network)
+			const childBrain = parentA.network.crossover(parentB.network)
 			const child = this.#createIndividual(childBrain)
 			newPopulation.push(child)
 		}
-		this.#population = newPopulation
+		this.population = newPopulation
 	}
 
 	#mutatePopulation() {
 		// Preservar un porcentaje de la población para elitismo
 		const elitismCount = Math.floor(0.1 * this.#populationSize)
-		for (let i = elitismCount; i < this.#population.length; i++) {
-			this.#population[i].mutate()
+		for (let i = elitismCount; i < this.population.length; i++) {
+			this.population[i].mutate()
 		}
 	}
 
 	#selectRandomGenome(): Genome {
-		return this.#population[Math.floor(Math.random() * this.#population.length)]
+		return this.population[Math.floor(Math.random() * this.population.length)]
 	}
 
 	#selectByRank(populationSubset: T[]): T {
@@ -127,7 +110,7 @@ export class NEAT<T extends Genome> {
 	}
 
 	getBestGenome(): T {
-		return this.#population[0] // Mejor genoma según fitness
+		return this.population.toSorted((a, b) => b.fitness - a.fitness)[0]
 	}
 
 	getGeneration(): number {
