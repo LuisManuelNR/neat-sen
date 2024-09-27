@@ -10,10 +10,10 @@
 	export let w = 800
 	export let h = 600
 
-	let simulate = false
+	let simulate = true
 	const SPEED = 5
 	const TURN_RATE = 10
-	const POPULATION_SIZE = 2
+	const POPULATION_SIZE = 50
 
 	let target = new Vec2D(1000, 300)
 
@@ -25,15 +25,15 @@
 			// const inputs = [this.pos.x, this.pos.y, target.x, target.y]
 			const normalized = [this.pos.x / w, this.pos.y / h, target.x / w, target.y / h]
 			const out = this.brain.forward(normalized)
-			console.log(out)
-			if (out[0] > 0.2) {
+			// console.log(out)
+			if (out[0] > 0.7) {
 				this.dir -= TURN_RATE
 			}
-			if (out[0] < -0.2) {
+			if (out[0] < 0.2) {
 				this.dir += TURN_RATE
 			}
 			const rad = (Math.PI / 180) * (this.dir - 90)
-			if (out[1] >= 0) {
+			if (out[1] >= 0.5) {
 				this.pos.x += Math.cos(rad) * SPEED
 				this.pos.y += Math.sin(rad) * SPEED
 			}
@@ -81,7 +81,7 @@
 	}
 
 	onMount(() => {
-		return runOnFrames(2, update)
+		return runOnFrames(60, update)
 	})
 </script>
 

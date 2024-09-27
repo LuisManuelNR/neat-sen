@@ -1,37 +1,68 @@
-// Función B-spline
-function bSpline(x: number, knots: number[], degree: number): number {
-	if (degree === 0) {
-		return (knots[0] <= x && x < knots[1]) ? 1 : 0
-	} else {
-		const d1 = knots[degree] - knots[0]
-		const d2 = knots[degree + 1] - knots[1]
-		const term1 = d1 !== 0 ? (x - knots[0]) / d1 * bSpline(x, knots.slice(0, degree), degree - 1) : 0
-		const term2 = d2 !== 0 ? (knots[degree + 1] - x) / d2 * bSpline(x, knots.slice(1), degree - 1) : 0
-		return term1 + term2
-	}
+import { BSpline } from './Spline'
+
+// Función SiLU (Sigmoid Linear Unit)
+function siLU(x: number): number {
+	return x / (1 + Math.exp(-x))
 }
+
+// Derivada de SiLU
+// function siLUDerivative(x: number): number {
+// 	const expNegX = Math.exp(-x)
+// 	return (1 + expNegX + x * expNegX) / Math.pow(1 + expNegX, 2)
+// }
+
+// Clase para obtener funciones de borde (SiLU y B-splines)
+// function getEdgeFunctions(x_bounds: [number, number], n_fun: number, degree: number = 3) {
+// 	const grid_len = n_fun - degree + 1
+// 	const step = (x_bounds[1] - x_bounds[0]) / (grid_len - 1)
+// 	const edge_fun: { [key: number]: (x: number) => number } = {}
+// 	const edge_fun_der: { [key: number]: (x: number) => number } = {}
+
+// 	// SiLU bias function
+// 	edge_fun[0] = (x: number) => siLU(x)
+// 	edge_fun_der[0] = (x: number) => siLUDerivative(x)
+
+// 	// B-splines
+// 	const t = Array.from({ length: grid_len + 2 * degree }, (_, i) => x_bounds[0] - degree * step + i * step)
+// 	t[degree] = x_bounds[0]
+// 	t[-degree - 1] = x_bounds[1]
+// 	for (let ind_spline = 0; ind_spline < n_fun - 1; ind_spline++) {
+// 		edge_fun[ind_spline + 1] = (x: number) => new BSpline(t, degree).evaluate(x)[0];
+//     edge_fun_der[ind_spline + 1] = (x: number) => edge_fun[ind_spline + 1](x); // Esto es solo un placeholder
+// 	}
+
+// 	return { edge_fun, edge_fun_der }
+// }
 
 // Neurona KAN
 class Neuron {
-	input: number[]
+	input: number[] // Entradas
 	weights: number[][]
-	knots: number[]
-	degree: number
+	bSplines: BSpline[] // Ahora usamos múltiples B-splines
 	bias: number
+	#weightsPerEdge: number
+	#degree: number
 
 	constructor(inputSize: number, weightsPerEdge: number, degree: number = 3) {
 		this.input = new Array(inputSize).fill(0)
-		this.weights = new Array(inputSize).fill(0).map(() => new Array(weightsPerEdge).fill(0).map(() => Math.random()))
-		this.knots = Array.from({ length: weightsPerEdge + degree + 1 }, (_, i) => i)
-		this.degree = degree
+		this.weights = new Array(inputSize)
+			.fill(0)
+			.map(() => new Array(weightsPerEdge).fill(0).map(() => Math.random()))
+		this.#weightsPerEdge = weightsPerEdge
+		this.#degree = degree
+		// Generar los knots automáticamente para cada neurona y cada dimensión de entrada
+		this.bSplines = this.#buildSplines()
+
 		this.bias = Math.random()
 	}
 
-	// Calcula el valor intermedio usando funciones de borde (B-spline)
+	// Calcula el valor intermedio utilizando tanto SiLU como B-splines
 	getMidValue(): number[] {
 		return this.input.map((x_i, i) => {
 			return this.weights[i].reduce((acc, w_ik, k) => {
-				return acc + w_ik * bSpline(x_i, this.knots.slice(k, k + this.degree + 2), this.degree)
+				// Aplicar SiLU solo al primer spline (f1)
+				let splineValue = k === 0 ? siLU(x_i) : this.bSplines[i].evaluate(x_i)[0]
+				return acc + w_ik * splineValue
 			}, 0)
 		})
 	}
@@ -45,32 +76,29 @@ class Neuron {
 
 	// Propagación hacia adelante
 	forward(input: number[]): number {
-		debugger
 		this.input = input
+		this.bSplines = this.#buildSplines()
 		return this.getOutput()
+	}
+
+	#buildSplines() {
+		return this.input.map(() => {
+			const knots = Array.from({ length: this.#weightsPerEdge + this.#degree + 1 }, (_, i) => i)
+			return new BSpline([knots], this.#degree) // Genera una B-Spline por dimensión
+		})
 	}
 
 	// Método para mutar los pesos y las funciones spline
 	mutate(mutationRate: number, mutationAmount: number): void {
 		// Mutar los pesos
-		this.weights = this.weights.map(weightArray =>
-			weightArray.map(weight => {
+		this.weights = this.weights.map((weightArray) =>
+			weightArray.map((weight) => {
 				if (Math.random() < mutationRate) {
-					// Aplicar mutación: añadir una pequeña variación aleatoria al peso
 					return weight + (Math.random() * 2 - 1) * mutationAmount
 				}
 				return weight
 			})
 		)
-
-		// Mutar los nodos del B-spline (knots)
-		this.knots = this.knots.map(knot => {
-			if (Math.random() < mutationRate) {
-				// Aplicar mutación: añadir una pequeña variación aleatoria al knot
-				return knot + (Math.random() * 2 - 1) * mutationAmount
-			}
-			return knot
-		})
 	}
 }
 
@@ -83,12 +111,12 @@ class Layer {
 
 	// Propagación hacia adelante a través de toda la capa
 	forward(input: number[]): number[] {
-		return this.neurons.map(neuron => neuron.forward(input))
+		return this.neurons.map((neuron) => neuron.forward(input))
 	}
 
 	// Mutar todos los pesos y las splines de la capa
 	mutateLayer(mutationRate: number, mutationAmount: number): void {
-		this.neurons.forEach(neuron => neuron.mutate(mutationRate, mutationAmount))
+		this.neurons.forEach((neuron) => neuron.mutate(mutationRate, mutationAmount))
 	}
 }
 
@@ -99,6 +127,7 @@ export class Brain {
 	outputSize: number
 	weightsPerEdge: number
 	degree: number
+	#lasOutput: number[] = []
 
 	constructor(inputSize: number, outputSize: number, weightsPerEdge: number, degree: number) {
 		this.layers = []
@@ -150,8 +179,7 @@ export class Brain {
 
 		// Copiar las neuronas y sus parámetros
 		originalLayer.neurons.forEach((neuron, i) => {
-			newLayer.neurons[i].weights = JSON.parse(JSON.stringify(neuron.weights))
-			newLayer.neurons[i].knots = JSON.parse(JSON.stringify(neuron.knots))
+			newLayer.neurons[i].weights = structuredClone(neuron.weights)
 			newLayer.neurons[i].bias = neuron.bias
 		})
 
@@ -160,14 +188,16 @@ export class Brain {
 
 	// Propagación hacia adelante a través de toda la red
 	forward(input: number[]): number[] {
-		return this.layers.reduce((input, layer) => layer.forward(input), input)
+		const out = this.layers.reduce((input, layer) => layer.forward(input), input)
+		this.#lasOutput = out
+		return out
 	}
 
-	// Mutar todas las capas de la red, con posibilidad de agregar capas o neuronas
+	// Mutar todas las capas de la red
 	mutate(mutationRate: number, mutationAmount: number, addComplexityChance: number): void {
-		this.layers.forEach(layer => layer.mutateLayer(mutationRate, mutationAmount))
+		this.layers.forEach((layer) => layer.mutateLayer(mutationRate, mutationAmount))
 
-		const complexityFactor = 1 / (this.layers.length + 1)  // Disminuye a medida que la red crece
+		const complexityFactor = 1 / (this.layers.length + 1) // Disminuye a medida que la red crece
 		if (Math.random() < addComplexityChance * complexityFactor) {
 			if (Math.random() < 0.5) {
 				this.addNeuronToRandomLayer()
@@ -182,57 +212,19 @@ export class Brain {
 		const layerIndex = Math.floor(Math.random() * this.layers.length)
 		const layer = this.layers[layerIndex]
 		const newNeuron = new Neuron(layer.neurons[0].input.length, this.weightsPerEdge, this.degree)
-		newNeuron.mutate(0.1, 0.5)  // Aplicar una mutación inicial
+		newNeuron.mutate(0.1, 0.5) // Aplicar una mutación inicial
 		layer.neurons.push(newNeuron)
 	}
 
 	// Añadir una nueva capa entre la última capa y la de salida
 	addLayer(): void {
 		const lastLayer = this.layers[this.layers.length - 1]
-		const newLayer = new Layer(lastLayer.neurons.length, lastLayer.neurons.length, this.weightsPerEdge, this.degree)
+		const newLayer = new Layer(
+			lastLayer.neurons.length,
+			lastLayer.neurons.length,
+			this.weightsPerEdge,
+			this.degree
+		)
 		this.layers.splice(this.layers.length - 1, 0, newLayer)
 	}
-
-	// Controlar que el número de entradas y salidas se respete
-	validateNetwork(): void {
-		const firstLayerInputSize = this.layers[0].neurons[0].input.length
-		if (firstLayerInputSize !== this.inputSize) {
-			throw new Error("Tamaño de entrada inválido en la primera capa")
-		}
-
-		const lastLayerOutputSize = this.layers[this.layers.length - 1].neurons.length
-		if (lastLayerOutputSize !== this.outputSize) {
-			throw new Error("Tamaño de salida inválido en la última capa")
-		}
-	}
-	// Guardar el modelo
-	saveModel(): object {
-		return {
-			layers: this.layers.map(layer => ({
-				neurons: layer.neurons.map(neuron => ({
-					weights: neuron.weights,
-					knots: neuron.knots,
-					bias: neuron.bias
-				}))
-			}))
-		}
-	}
-
-	// Cargar un modelo
-	loadModel(model: any): void {
-		if (model.layers.length !== this.layers.length) {
-			throw new Error("El modelo cargado no tiene la misma estructura de capas.")
-		}
-		model.layers.forEach((layerData: any, layerIndex: number) => {
-			if (layerData.neurons.length !== this.layers[layerIndex].neurons.length) {
-				throw new Error(`La capa ${layerIndex} del modelo cargado no coincide en número de neuronas.`)
-			}
-			this.layers[layerIndex].neurons.forEach((neuron, neuronIndex) => {
-				neuron.weights = layerData.neurons[neuronIndex].weights
-				neuron.knots = layerData.neurons[neuronIndex].knots
-				neuron.bias = layerData.neurons[neuronIndex].bias
-			})
-		})
-	}
-
 }
