@@ -1,178 +1,238 @@
-import { randomNumber } from '@chasi/ui/utils'
-import { Vec2D } from '../utils'
-
-export class Brain {
-	inputDim: number
-	outputDim: number
-	numFunctions: number
-	coefficients: number[][] // Coeficientes para las combinaciones lineales
-	splines: Spline[][] // Splines en los bordes
-
-	constructor(inputDim: number, outputDim: number) {
-		this.inputDim = inputDim
-		this.numFunctions = 10
-		this.outputDim = outputDim
-
-		// Inicializar coeficientes de combinaciones lineales
-		this.coefficients = this.#initializeCoefficients()
-		// Inicializar splines
-		this.splines = this.#initializeSplines()
-	}
-
-	#initializeCoefficients(): number[][] {
-		const coefficients: number[][] = []
-		for (let i = 0; i < this.numFunctions; i++) {
-			const funcCoefficients: number[] = []
-			for (let j = 0; j < this.inputDim; j++) {
-				// Normalizar coeficientes en el rango [-1, 1]
-				funcCoefficients.push(Math.random() * 2 - 1)
-			}
-			coefficients.push(funcCoefficients)
-		}
-		return coefficients
-	}
-
-	#initializeSplines(): Spline[][] {
-		const splinesArray: Spline[][] = []
-		for (let i = 0; i < this.numFunctions; i++) {
-			const splineFunctions: Spline[] = []
-			for (let j = 0; j < this.outputDim; j++) {
-				// Inicializar puntos de control con valores y pequeños para evitar valores grandes en las splines
-				const points = [
-					new Vec2D(0, randomNumber(-1, 1)),
-					new Vec2D(1, randomNumber(-1, 1)),
-					new Vec2D(2, randomNumber(-1, 1))
-				]
-				splineFunctions.push(new Spline(points))
-			}
-			splinesArray.push(splineFunctions)
-		}
-		return splinesArray
-	}
-
-	forward(input: number[]): number[] {
-		const outputs: number[] = new Array(this.outputDim).fill(0)
-
-		for (let outIdx = 0; outIdx < this.outputDim; outIdx++) {
-			let sum = 0
-			for (let funcIdx = 0; funcIdx < this.numFunctions; funcIdx++) {
-				const linearResult = this.#linearCombination(input, this.coefficients[funcIdx])
-				const splineResult = this.splines[funcIdx][outIdx].evaluate(linearResult)
-				sum += splineResult
-			}
-
-			// Aplicar función de activación (tanh) para forzar el resultado a estar entre -1 y 1
-			outputs[outIdx] = Math.tanh(sum)
-		}
-
-		return outputs
-	}
-
-	#linearCombination(input: number[], coefficients: number[]): number {
-		return input.reduce((sum, val, i) => sum + val * coefficients[i], 0)
-	}
-
-	mutate(mutationRate: number): void {
-		// Mutar coeficientes lineales
-		for (let i = 0; i < this.numFunctions; i++) {
-			for (let j = 0; j < this.inputDim; j++) {
-				this.coefficients[i][j] += randomNumber(-0.1, 0.1) * mutationRate
-			}
-		}
-		// Mutar splines
-		for (let i = 0; i < this.numFunctions; i++) {
-			for (let j = 0; j < this.outputDim; j++) {
-				this.splines[i][j].mutate(mutationRate)
-			}
-		}
-	}
-
-	clone(): Brain {
-		const clone = new Brain(this.inputDim, this.outputDim)
-		clone.coefficients = structuredClone(this.coefficients)
-		clone.splines = this.splines.map((row) => row.map((spline) => spline.clone()))
-		return clone
-	}
-
-	crossover(partner: Brain): Brain {
-		const childNetwork = this.clone()
-
-		for (let i = 0; i < this.coefficients.length; i++) {
-			for (let j = 0; j < this.coefficients[i].length; j++) {
-				childNetwork.coefficients[i][j] =
-					Math.random() > 0.5 ? this.coefficients[i][j] : partner.coefficients[i][j]
-			}
-		}
-
-		for (let i = 0; i < this.splines.length; i++) {
-			for (let j = 0; j < this.splines[i].length; j++) {
-				childNetwork.splines[i][j] =
-					Math.random() > 0.5
-						? new Spline([...this.splines[i][j].controlPoints])
-						: new Spline([...partner.splines[i][j].controlPoints])
-			}
-		}
-
-		return childNetwork
+// Función B-spline
+function bSpline(x: number, knots: number[], degree: number): number {
+	if (degree === 0) {
+		return (knots[0] <= x && x < knots[1]) ? 1 : 0
+	} else {
+		const d1 = knots[degree] - knots[0]
+		const d2 = knots[degree + 1] - knots[1]
+		const term1 = d1 !== 0 ? (x - knots[0]) / d1 * bSpline(x, knots.slice(0, degree), degree - 1) : 0
+		const term2 = d2 !== 0 ? (knots[degree + 1] - x) / d2 * bSpline(x, knots.slice(1), degree - 1) : 0
+		return term1 + term2
 	}
 }
 
-export class Spline {
-	controlPoints: Vec2D[]
+// Neurona KAN
+class Neuron {
+	input: number[]
+	weights: number[][]
+	knots: number[]
+	degree: number
+	bias: number
 
-	constructor(controlPoints: Vec2D[]) {
-		this.controlPoints = controlPoints
+	constructor(inputSize: number, weightsPerEdge: number, degree: number = 3) {
+		this.input = new Array(inputSize).fill(0)
+		this.weights = new Array(inputSize).fill(0).map(() => new Array(weightsPerEdge).fill(0).map(() => Math.random()))
+		this.knots = Array.from({ length: weightsPerEdge + degree + 1 }, (_, i) => i)
+		this.degree = degree
+		this.bias = Math.random()
 	}
 
-	evaluate(x: number): number {
-		if (this.controlPoints.length < 4) {
-			return this.linearInterpolate(x)
-		}
-
-		let i = 1
-		while (i < this.controlPoints.length - 2 && x > this.controlPoints[i + 1].x) {
-			i++
-		}
-
-		const p0 = this.controlPoints[i - 1]
-		const p1 = this.controlPoints[i]
-		const p2 = this.controlPoints[i + 1]
-		const p3 = this.controlPoints[i + 2]
-
-		const t = (x - p1.x) / (p2.x - p1.x)
-
-		const a = -0.5 * p0.y + 1.5 * p1.y - 1.5 * p2.y + 0.5 * p3.y
-		const b = p0.y - 2.5 * p1.y + 2 * p2.y - 0.5 * p3.y
-		const c = -0.5 * p0.y + 0.5 * p2.y
-		const d = p1.y
-
-		return a * t * t * t + b * t * t + c * t + d
+	// Calcula el valor intermedio usando funciones de borde (B-spline)
+	getMidValue(): number[] {
+		return this.input.map((x_i, i) => {
+			return this.weights[i].reduce((acc, w_ik, k) => {
+				return acc + w_ik * bSpline(x_i, this.knots.slice(k, k + this.degree + 2), this.degree)
+			}, 0)
+		})
 	}
 
-	linearInterpolate(x: number): number {
-		const n = this.controlPoints.length
-		for (let i = 0; i < n - 1; i++) {
-			const p0 = this.controlPoints[i]
-			const p1 = this.controlPoints[i + 1]
-			if (x >= p0.x && x <= p1.x) {
-				const t = (x - p0.x) / (p1.x - p0.x)
-				return p0.y + t * (p1.y - p0.y)
+	// Calcula la salida final usando una función de activación (tangente hiperbólica)
+	getOutput(): number {
+		const midValues = this.getMidValue()
+		const sumMid = midValues.reduce((acc, x_mid) => acc + x_mid, 0)
+		return Math.tanh(sumMid + this.bias)
+	}
+
+	// Propagación hacia adelante
+	forward(input: number[]): number {
+		debugger
+		this.input = input
+		return this.getOutput()
+	}
+
+	// Método para mutar los pesos y las funciones spline
+	mutate(mutationRate: number, mutationAmount: number): void {
+		// Mutar los pesos
+		this.weights = this.weights.map(weightArray =>
+			weightArray.map(weight => {
+				if (Math.random() < mutationRate) {
+					// Aplicar mutación: añadir una pequeña variación aleatoria al peso
+					return weight + (Math.random() * 2 - 1) * mutationAmount
+				}
+				return weight
+			})
+		)
+
+		// Mutar los nodos del B-spline (knots)
+		this.knots = this.knots.map(knot => {
+			if (Math.random() < mutationRate) {
+				// Aplicar mutación: añadir una pequeña variación aleatoria al knot
+				return knot + (Math.random() * 2 - 1) * mutationAmount
+			}
+			return knot
+		})
+	}
+}
+
+class Layer {
+	neurons: Neuron[]
+
+	constructor(numNeurons: number, inputSize: number, weightsPerEdge: number, degree: number) {
+		this.neurons = Array.from({ length: numNeurons }, () => new Neuron(inputSize, weightsPerEdge, degree))
+	}
+
+	// Propagación hacia adelante a través de toda la capa
+	forward(input: number[]): number[] {
+		return this.neurons.map(neuron => neuron.forward(input))
+	}
+
+	// Mutar todos los pesos y las splines de la capa
+	mutateLayer(mutationRate: number, mutationAmount: number): void {
+		this.neurons.forEach(neuron => neuron.mutate(mutationRate, mutationAmount))
+	}
+}
+
+// Red KAN
+export class Brain {
+	layers: Layer[]
+	inputSize: number
+	outputSize: number
+	weightsPerEdge: number
+	degree: number
+
+	constructor(inputSize: number, outputSize: number, weightsPerEdge: number, degree: number) {
+		this.layers = []
+		this.inputSize = inputSize
+		this.outputSize = outputSize
+		this.weightsPerEdge = weightsPerEdge
+		this.degree = degree
+
+		// Inicialización simple: solo una capa con el número mínimo de neuronas
+		const initialLayer = new Layer(outputSize, inputSize, weightsPerEdge, degree)
+		this.layers.push(initialLayer)
+	}
+
+	// Método de crossover entre dos redes Brain
+	static crossover(parent1: Brain, parent2: Brain): Brain {
+		// Crear un hijo con la estructura del primer padre
+		const child = new Brain(parent1.inputSize, parent1.outputSize, parent1.weightsPerEdge, parent1.degree)
+
+		// Seleccionar un punto de cruce para las capas
+		const crossoverPoint = Math.floor(Math.random() * Math.min(parent1.layers.length, parent2.layers.length))
+
+		// Recorrer las capas
+		for (let i = 0; i < Math.max(parent1.layers.length, parent2.layers.length); i++) {
+			if (i < crossoverPoint) {
+				// Copiar la capa del primer padre
+				if (i < parent1.layers.length) {
+					child.layers.push(parent1.copyLayer(i))
+				}
+			} else {
+				// Copiar la capa del segundo padre
+				if (i < parent2.layers.length) {
+					child.layers.push(parent2.copyLayer(i))
+				}
 			}
 		}
-		return this.controlPoints[n - 1].y
+
+		return child
 	}
 
-	mutate(mutationRate: number): void {
-		this.controlPoints = this.controlPoints.map(
-			(point) =>
-				new Vec2D(
-					point.x + randomNumber(-0.1, 0.1) * mutationRate,
-					point.y + randomNumber(-0.1, 0.1) * mutationRate
-				)
+	// Copia una capa (usada para el crossover)
+	copyLayer(layerIndex: number): Layer {
+		const originalLayer = this.layers[layerIndex]
+		const newLayer = new Layer(
+			originalLayer.neurons.length,
+			originalLayer.neurons[0].input.length, // Asumimos que todas las neuronas tienen el mismo tamaño de entrada
+			this.weightsPerEdge,
+			this.degree
 		)
+
+		// Copiar las neuronas y sus parámetros
+		originalLayer.neurons.forEach((neuron, i) => {
+			newLayer.neurons[i].weights = JSON.parse(JSON.stringify(neuron.weights))
+			newLayer.neurons[i].knots = JSON.parse(JSON.stringify(neuron.knots))
+			newLayer.neurons[i].bias = neuron.bias
+		})
+
+		return newLayer
 	}
 
-	clone() {
-		return new Spline(structuredClone(this.controlPoints))
+	// Propagación hacia adelante a través de toda la red
+	forward(input: number[]): number[] {
+		return this.layers.reduce((input, layer) => layer.forward(input), input)
 	}
+
+	// Mutar todas las capas de la red, con posibilidad de agregar capas o neuronas
+	mutate(mutationRate: number, mutationAmount: number, addComplexityChance: number): void {
+		this.layers.forEach(layer => layer.mutateLayer(mutationRate, mutationAmount))
+
+		const complexityFactor = 1 / (this.layers.length + 1)  // Disminuye a medida que la red crece
+		if (Math.random() < addComplexityChance * complexityFactor) {
+			if (Math.random() < 0.5) {
+				this.addNeuronToRandomLayer()
+			} else {
+				this.addLayer()
+			}
+		}
+	}
+
+	// Añadir una nueva neurona a una capa existente
+	addNeuronToRandomLayer(): void {
+		const layerIndex = Math.floor(Math.random() * this.layers.length)
+		const layer = this.layers[layerIndex]
+		const newNeuron = new Neuron(layer.neurons[0].input.length, this.weightsPerEdge, this.degree)
+		newNeuron.mutate(0.1, 0.5)  // Aplicar una mutación inicial
+		layer.neurons.push(newNeuron)
+	}
+
+	// Añadir una nueva capa entre la última capa y la de salida
+	addLayer(): void {
+		const lastLayer = this.layers[this.layers.length - 1]
+		const newLayer = new Layer(lastLayer.neurons.length, lastLayer.neurons.length, this.weightsPerEdge, this.degree)
+		this.layers.splice(this.layers.length - 1, 0, newLayer)
+	}
+
+	// Controlar que el número de entradas y salidas se respete
+	validateNetwork(): void {
+		const firstLayerInputSize = this.layers[0].neurons[0].input.length
+		if (firstLayerInputSize !== this.inputSize) {
+			throw new Error("Tamaño de entrada inválido en la primera capa")
+		}
+
+		const lastLayerOutputSize = this.layers[this.layers.length - 1].neurons.length
+		if (lastLayerOutputSize !== this.outputSize) {
+			throw new Error("Tamaño de salida inválido en la última capa")
+		}
+	}
+	// Guardar el modelo
+	saveModel(): object {
+		return {
+			layers: this.layers.map(layer => ({
+				neurons: layer.neurons.map(neuron => ({
+					weights: neuron.weights,
+					knots: neuron.knots,
+					bias: neuron.bias
+				}))
+			}))
+		}
+	}
+
+	// Cargar un modelo
+	loadModel(model: any): void {
+		if (model.layers.length !== this.layers.length) {
+			throw new Error("El modelo cargado no tiene la misma estructura de capas.")
+		}
+		model.layers.forEach((layerData: any, layerIndex: number) => {
+			if (layerData.neurons.length !== this.layers[layerIndex].neurons.length) {
+				throw new Error(`La capa ${layerIndex} del modelo cargado no coincide en número de neuronas.`)
+			}
+			this.layers[layerIndex].neurons.forEach((neuron, neuronIndex) => {
+				neuron.weights = layerData.neurons[neuronIndex].weights
+				neuron.knots = layerData.neurons[neuronIndex].knots
+				neuron.bias = layerData.neurons[neuronIndex].bias
+			})
+		})
+	}
+
 }

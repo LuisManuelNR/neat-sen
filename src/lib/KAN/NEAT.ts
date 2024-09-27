@@ -9,7 +9,7 @@ export class Individuals {
 	}
 
 	mutate(mutationRate: number): void {
-		this.brain.mutate(mutationRate)
+		this.brain.mutate(0.1, 0.5, 0.05)
 	}
 }
 
@@ -40,7 +40,7 @@ export class NEAT<T extends Individuals, I extends number, O extends number> {
 		this.population = []
 
 		for (let i = 0; i < this.#populationSize; i++) {
-			const network = new Brain(opt.inputDim, opt.outputDim)
+			const network = new Brain(opt.inputDim, opt.outputDim, 7, 4)
 			this.population.push(this.#createIndividual(network))
 		}
 	}
@@ -49,7 +49,7 @@ export class NEAT<T extends Individuals, I extends number, O extends number> {
 		this.#generation++
 		this.#normalizeFitness()
 		this.#selection()
-		this.#reproduce()
+		// this.#reproduce()
 		this.#mutatePopulation()
 	}
 
@@ -83,25 +83,13 @@ export class NEAT<T extends Individuals, I extends number, O extends number> {
 
 			// Evitar que los padres sean idénticos
 			if (parentA !== parentB) {
-				const childBrain = parentA.brain.crossover(parentB.brain)
+				const childBrain = Brain.crossover(parentA.brain, parentB.brain)
 				const child = this.#createIndividual(childBrain)
 				selected.push(child)
 			}
 		}
 
 		this.population = [...elitists, ...selected]
-	}
-
-	#reproduce() {
-		const newPopulation: T[] = []
-		for (let i = 0; i < this.#populationSize; i++) {
-			const parentA = this.#selectRandomIndividual()
-			const parentB = this.#selectRandomIndividual()
-			const childBrain = parentA.brain.crossover(parentB.brain)
-			const child = this.#createIndividual(childBrain)
-			newPopulation.push(child)
-		}
-		this.population = newPopulation
 	}
 
 	#mutatePopulation() {
