@@ -24,11 +24,18 @@
 		marginTop={MARGIN}
 		marginBottom={MARGIN}
 	>
+		<CPath domainX={DOMAIN} domainY={DOMAIN} {x} {y} color="var(--brand)"></CPath>
 		{#each spline.controlPoints as point}
-			<CCircle x={point[0]} y={point[1]} domainX={DOMAIN} domainY={DOMAIN} r="3" strokeWidth="1"
-			></CCircle>
+			<CCircle
+				x={point[0]}
+				y={point[1]}
+				domainX={DOMAIN}
+				domainY={DOMAIN}
+				r="2"
+				strokeWidth="0"
+				color="var(--accent)"
+			/>
 		{/each}
-		<CPath domainX={DOMAIN} domainY={DOMAIN} {x} {y} color="var(--accent)"></CPath>
 	</CGraph>
 </div>
 

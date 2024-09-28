@@ -1,19 +1,15 @@
+import { range } from '$lib/utils'
 import { randomNumber } from '@chasi/ui/utils'
 
 export class BSpline {
-	controlPoints: [number, number][] = []
+	controlPoints: number[][]
 	#degree: number
 	#knots: number[] = []
 
-	constructor(controlPoints?: [number, number][], degree?: number) {
-		this.#degree = degree || 3
-		this.controlPoints = controlPoints || [
-			[-1, randomNumber(-1, 1)],
-			[-0.5, randomNumber(-1, 1)],
-			[0, randomNumber(-1, 1)],
-			[0.5, randomNumber(-1, 1)],
-			[1, randomNumber(-1, 1)]
-		]
+	constructor(points = 4, degree = 2) {
+		this.#degree = degree
+		const p = range([-1, 1], points)
+		this.controlPoints = p.map((v) => [v, randomNumber(-1, 1)])
 		this.#knots = this.#generateKnotVector()
 	}
 

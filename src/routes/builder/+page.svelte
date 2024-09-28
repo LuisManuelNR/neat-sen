@@ -3,23 +3,28 @@
 	import Network from '$lib/Viz/Network.svelte'
 	import { randomNumber } from '@chasi/ui/utils'
 
-	const INPUT_SIZE = 3
-	const OUTPUT_SIZE = 1
 	let network = new Brain({
-		inputSize: INPUT_SIZE,
-		outputSize: OUTPUT_SIZE,
+		inputSize: 3,
+		outputSize: 2,
 		dataDomain: [0, 10]
 	})
 
 	function handleAddLayer() {
-		// const splines = Math.round(randomNumber(1, 5))
-		// network.addLayer(splines)
-		// network = network
+		network.addLayer()
+		network = network
 	}
 	function handleForward() {
-		const inputSamples = new Array(INPUT_SIZE).map((v) => randomNumber(0, 10))
+		const inputSamples = Array.from({ length: network.inputs.length }, () => randomNumber(0, 10))
 		network.forward(inputSamples)
 		network = network
+	}
+
+	function randomizeNetwork() {
+		network = new Brain({
+			inputSize: Math.floor(randomNumber(1, 5)),
+			outputSize: Math.floor(randomNumber(1, 5)),
+			dataDomain: [0, 10]
+		})
 	}
 </script>
 
@@ -27,6 +32,7 @@
 	<div class="card d-grid gap-4">
 		<button class="btn" on:click={handleForward}> forward </button>
 		<button class="btn" on:click={handleAddLayer}> add layer </button>
+		<button class="btn" on:click={randomizeNetwork}> randomize </button>
 	</div>
 	<Network {network}></Network>
 </div>
