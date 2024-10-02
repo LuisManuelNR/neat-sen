@@ -29,6 +29,7 @@
 		targetBound: Vec2D[]
 		maxSpeed = 6
 		prevDistance: number = 0
+		fitness = 0
 
 		constructor(b: Brain) {
 			this.brain = b
@@ -37,15 +38,6 @@
 		}
 
 		seek() {
-			// const normalized = [
-			// 	linearScale(this.pos.x, 0, w, -1, 1),
-			// 	linearScale(this.pos.y, 0, w, -1, 1),
-			// 	linearScale(this.target.x, 0, w, -1, 1),
-			// 	linearScale(this.target.y, 0, w, -1, 1),
-			// 	linearScale(this.dir, 0, 360, -1, 1),
-			// 	linearScale(this.pos.degFromPoint(this.target), 0, 360, -1, 1)
-			// ]
-
 			const normalized = [
 				linearScale(this.pos.x, 0, w, 0, 1),
 				linearScale(this.pos.y, 0, w, 0, 1),
@@ -54,16 +46,6 @@
 				linearScale(this.dir, 0, 360, 0, 1),
 				linearScale(this.pos.degFromPoint(this.target), 0, 360, 0, 1)
 			]
-
-			// const normalized = [
-			// 	Math.tanh(this.pos.x / w),
-			// 	Math.tanh(this.pos.y / h),
-			// 	Math.tanh(this.target.x / w),
-			// 	Math.tanh(this.target.y / h),
-			// 	Math.tanh(this.dir / 360),
-			// 	Math.tanh(this.pos.degFromPoint(this.target) / 360)
-			// ]
-
 			this.brain.forward(normalized)
 
 			const out = this.brain.outputs
@@ -108,7 +90,7 @@
 				fit += 1
 			}
 
-			this.brain.fitness += Math.pow(fit, 2)
+			this.fitness += Math.pow(fit, 2)
 			this.prevDistance = distance
 		}
 	}
@@ -126,7 +108,7 @@
 	let evolutionInterval = 5
 	function update() {
 		frames++
-		if (frames % 150 === 0 && evolutionInterval < 300) evolutionInterval++
+		if (frames % 10 === 0 && evolutionInterval < 500) evolutionInterval++
 		if (simulate) {
 			if (frames % evolutionInterval === 0) {
 				simulation.evolve()
@@ -161,7 +143,7 @@
 		<button class="btn success" on:click={() => (simulate = true)}> evolve </button>
 	{/if}
 	<p>generations: {generations}</p>
-	<p>best fitness: {bestSpider?.brain.fitness}</p>
+	<p>best fitness: {bestSpider?.fitness}</p>
 </div>
 
 <div class="wrapper d-grid gap-2">

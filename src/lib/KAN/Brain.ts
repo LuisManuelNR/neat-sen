@@ -1,5 +1,6 @@
+import { normalize } from '$lib/utils'
 import { BSpline } from './BSpline'
-import { randomNumber } from '@chasi/ui/utils'
+import { linearScale, max, min, randomNumber } from '@chasi/ui/utils'
 
 class Layer {
 	splines: BSpline[] = []
@@ -29,13 +30,14 @@ class Layer {
 				results[j] += spline.evaluate(inputs[i])
 			}
 		}
-		return results
+		// return results
+		const minO = min(inputs)
+		const maxO = max(inputs)
+		return results.map(o => linearScale(o, minO, maxO, 0, 1))
 	}
 
 	mutate() {
-		this.splines.forEach((spline) => {
-			spline.mutate()
-		})
+		this.splines.forEach((spline) => spline.mutate())
 	}
 
 	clone() {

@@ -14,9 +14,11 @@ export class BSpline {
 
 	// Método para evaluar la curva en un valor t (entre 0 y 1)
 	evaluate(t: number): number {
-		if (t < 0 || t > 1) {
-			throw new Error('El valor de t debe estar entre 0 y 1.')
-		}
+		if (t < 0) return 0
+		if (t > 1) return 1
+		// if (t < 0 || t > 1) {
+		// 	throw new Error('El valor de t debe estar entre 0 y 1.')
+		// }
 
 		let result = 0
 

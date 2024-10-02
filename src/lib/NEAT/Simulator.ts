@@ -1,7 +1,5 @@
 import { Brain } from '$lib/KAN/Brain'
 
-// import { Brain } from '$lib/TOY-MLP/Brain'
-
 type NEATOptions<T extends { brain: Brain }> = {
 	inputs: number
 	outputs: number
@@ -9,7 +7,7 @@ type NEATOptions<T extends { brain: Brain }> = {
 	createIndividual: (brain: Brain) => T
 }
 
-export class Simulation<T extends { brain: Brain }> {
+export class Simulation<T extends { brain: Brain, fitness: number }> {
 	population: T[]
 	#populationSize: number
 	#generation: number = 0
@@ -45,22 +43,22 @@ export class Simulation<T extends { brain: Brain }> {
 	#normalizeFitness() {
 		let sum = 0
 		this.population.forEach((indi) => {
-			indi.brain.fitness = Math.pow(indi.brain.fitness, 2)
-			sum += indi.brain.fitness
+			indi.fitness = Math.pow(indi.fitness, 2)
+			sum += indi.fitness
 		})
 		this.population.forEach((indi) => {
-			indi.brain.fitness /= sum
+			indi.fitness /= sum
 		})
 	}
 
 	#updateBest() {
-		this.population.sort((a, b) => b.brain.fitness - a.brain.fitness)
+		this.population.sort((a, b) => b.fitness - a.fitness)
 		// if (this.population[0].brain.fitness > this.#best.brain.fitness) {
 		// 	this.#best = this.#createIndividual(this.population[0].brain.clone())
 		// 	this.#best.brain.fitness = this.population[0].brain.fitness
 		// }
 		this.#best = this.#createIndividual(this.population[0].brain.clone())
-		this.#best.brain.fitness = this.population[0].brain.fitness
+		this.#best.fitness = this.population[0].fitness
 	}
 
 	#selection() {
@@ -88,7 +86,7 @@ export class Simulation<T extends { brain: Brain }> {
 		// Higher probabilities will be more likely to be fixed since they will
 		// subtract a larger number towards zero
 		while (r > 0) {
-			r -= poulacho[index].brain.fitness
+			r -= poulacho[index].fitness
 			// And move on to the next
 			index += 1
 		}
