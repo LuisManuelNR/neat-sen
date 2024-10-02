@@ -1,39 +1,39 @@
-import { range } from '$lib/utils'
+import { randomGaussian } from '$lib/utils'
 import { randomNumber } from '@chasi/ui/utils'
 
 export class BSpline {
-	controlPoints: number[][]
+	controlPoints: number[]
 	#degree: number
-	#knots: number[] = []
+	#knots: number[]
 
 	constructor(points = 4, degree = 2) {
 		this.#degree = degree
-		const p = range([-1, 1], points)
-		this.controlPoints = p.map((v) => [v, randomNumber(-1, 1)])
+		this.controlPoints = Array.from({ length: points }, () => randomNumber(0, 1))
 		this.#knots = this.#generateKnotVector()
 	}
 
-	// Método que calcula el valor de la función B-Spline para una x dada
-	evaluate(x: number): number {
-		// Mapeo de x al rango [0, 1]
-		const t = this.#mapXtoT(x)
+	// Método para evaluar la curva en un valor t (entre 0 y 1)
+	evaluate(t: number): number {
+		if (t < 0 || t > 1) {
+			throw new Error('El valor de t debe estar entre 0 y 1.')
+		}
 
-		// Calcular el valor de y usando la fórmula de los B-Splines
-		let y = 0
+		let result = 0
+
+		// Evaluar la función base para cada punto de control y sumar sus contribuciones
 		for (let i = 0; i < this.controlPoints.length; i++) {
 			const basis = this.#basisFunction(i, this.#degree, t)
-			y += basis * this.controlPoints[i][1] // y es el segundo valor en el array [x, y]
+			result += basis * this.controlPoints[i]
 		}
-		return y
+
+		return result
 	}
 
-	// Método privado para generar el vector de nodos (knots)
 	#generateKnotVector(): number[] {
 		const n = this.controlPoints.length - 1
 		const m = n + this.#degree + 1
-		let knots: number[] = []
+		const knots: number[] = []
 
-		// Generar nodos uniformes abiertos
 		for (let i = 0; i <= m; i++) {
 			if (i <= this.#degree) {
 				knots.push(0)
@@ -43,19 +43,16 @@ export class BSpline {
 				knots.push((i - this.#degree) / (m - 2 * this.#degree))
 			}
 		}
+
 		return knots
 	}
 
-	// Método privado para mapear el valor de x al rango de los nodos [0, 1]
-	#mapXtoT(x: number): number {
-		const minX = this.controlPoints[0][0] // x es el primer valor en el array [x, y]
-		const maxX = this.controlPoints[this.controlPoints.length - 1][0]
-		return (x - minX) / (maxX - minX)
-	}
-
-	// Definición recursiva de la base B-Spline (método privado)
+	// Definición recursiva de la base B-Spline
 	#basisFunction(i: number, k: number, t: number): number {
 		if (k === 0) {
+			if (i === this.controlPoints.length - 1 && t === 1) {
+				return 1
+			}
 			return this.#knots[i] <= t && t < this.#knots[i + 1] ? 1 : 0
 		} else {
 			const denom1 = this.#knots[i + k] - this.#knots[i]
@@ -70,5 +67,20 @@ export class BSpline {
 
 			return term1 + term2
 		}
+	}
+
+	mutate() {
+		this.controlPoints = this.controlPoints.map((n) => {
+			n += randomGaussian(0, 0.01)
+			if (n > 1) n -= 0.01
+			if (n < 0) n += 0.01
+			return n
+		})
+	}
+
+	clone() {
+		const clone = new BSpline(this.controlPoints.length, this.#degree)
+		clone.controlPoints = this.controlPoints
+		return clone
 	}
 }

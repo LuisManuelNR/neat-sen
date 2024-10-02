@@ -1,5 +1,5 @@
-import { linearScale, randomNumber } from '@chasi/ui/utils'
 import { BSpline } from './BSpline'
+import { randomNumber } from '@chasi/ui/utils'
 
 class Layer {
 	splines: BSpline[] = []
@@ -15,7 +15,6 @@ class Layer {
 
 	forward(inputs: number[]) {
 		if (inputs.length !== this.inputs) throw new Error('Input layer mismatch')
-
 		const results: number[] = new Array(this.outputs).fill(0) // Inicializa el array de resultados
 
 		// Itera sobre cada input
@@ -30,54 +29,83 @@ class Layer {
 				results[j] += spline.evaluate(inputs[i])
 			}
 		}
-
-		// Devuelve los resultados que tienen la longitud de outputs
 		return results
+	}
+
+	mutate() {
+		this.splines.forEach((spline) => {
+			spline.mutate()
+		})
+	}
+
+	clone() {
+		const clone = new Layer(this.inputs, this.outputs)
+		clone.splines = this.splines.map((s) => s.clone())
+		return clone
 	}
 }
 
-type NetworkOptions = {
-	inputSize: number
-	outputSize: number
-	dataDomain: [number, number]
+type BrainOptions = {
+	mutationRate?: number
+	mutationLayerRate?: number
 }
 export class Brain {
 	layers: Layer[]
 	#inputSize: number
 	#outputSize: number
-	#dataDomain: [number, number]
+	#mutationRate: number
+	#mutationLayerRate: number
 	inputs: number[]
 	outputs: number[]
 
-	constructor(opt: NetworkOptions) {
-		this.#inputSize = opt.inputSize
-		this.#outputSize = opt.outputSize
+	constructor(inputSize: number, outputSize: number, opt?: BrainOptions) {
+		this.#inputSize = inputSize
+		this.#outputSize = outputSize
+
+		this.#mutationRate = opt?.mutationRate || 0.05
+		this.#mutationLayerRate = opt?.mutationLayerRate || 0.01
 
 		this.inputs = new Array(this.#inputSize).fill(0)
 		this.outputs = new Array(this.#outputSize).fill(0)
 
 		this.layers = [new Layer(this.#inputSize, this.#outputSize)]
-
-		this.#dataDomain = opt.dataDomain
-	}
-
-	addLayer() {
-		const inputs = this.layers.at(-1)!.outputs
-		const outputs = Math.floor(randomNumber(1, 7))
-		this.layers = [...this.layers, new Layer(inputs, outputs), new Layer(outputs, this.#outputSize)]
 	}
 
 	forward(inputs: number[]) {
-		console.time('forward')
-		this.inputs = inputs.map((v) => linearScale(v, this.#dataDomain[0], this.#dataDomain[1], -1, 1))
+		this.inputs = inputs
 
 		// Propagar a través de todas las capas
-		let outputs = structuredClone(this.inputs)
+		let outputs = this.inputs
 		for (const layer of this.layers) {
 			outputs = layer.forward(outputs)
 		}
 
 		this.outputs = outputs
-		console.timeEnd('forward')
 	}
+
+	addLayer() {
+		const inputs = this.layers.at(-1)!.outputs
+		const outputs = Math.floor(randomNumber(1, 9))
+		this.layers = [...this.layers, new Layer(inputs, outputs), new Layer(outputs, this.#outputSize)]
+	}
+
+	mutate() {
+		if (probably(this.#mutationRate)) {
+			this.layers.forEach((l) => l.mutate())
+		}
+		const complexityFactor = 0.1 / (this.layers.length + 1) // Disminuye a medida que la red crece
+		if (probably(this.#mutationLayerRate * complexityFactor)) {
+			this.addLayer()
+		}
+	}
+
+	clone() {
+		const clone = new Brain(this.#inputSize, this.#outputSize)
+		clone.layers = this.layers.map((l) => l.clone())
+		return clone
+	}
+}
+
+function probably(rate: number) {
+	return Math.random() < rate
 }
