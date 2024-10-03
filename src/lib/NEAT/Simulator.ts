@@ -58,7 +58,6 @@ export class Simulation<T extends { brain: Brain, fitness: number }> {
 		// 	this.#best.brain.fitness = this.population[0].brain.fitness
 		// }
 		this.#best = this.#createIndividual(this.population[0].brain.clone())
-		this.#best.fitness = this.population[0].fitness
 	}
 
 	#selection() {

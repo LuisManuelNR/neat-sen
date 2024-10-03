@@ -96,3 +96,30 @@ export function clamp(value: number, min: number, max: number): number {
 export function sigmoid(x: number) {
 	return 1 / (1 + Math.exp(-x))
 }
+
+export function runEveryFrames(fps = 30, callback: () => void) {
+	const interval = 1000 / fps // Tiempo en ms entre cada frame
+	let now
+	let then = Date.now()
+	let delta
+
+	let timeoutId: number
+
+	function update() {
+		timeoutId = setTimeout(update, interval) // Llama a update en intervalos regulares
+
+		now = Date.now()
+		delta = now - then
+
+		if (delta > interval) {
+			then = now - (delta % interval)
+
+			callback() // Ejecutar el callback
+		}
+	}
+
+	update()
+
+	// Retorna una función para cancelar la ejecución de frames
+	return () => clearTimeout(timeoutId)
+}

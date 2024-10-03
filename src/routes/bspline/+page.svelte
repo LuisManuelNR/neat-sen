@@ -4,7 +4,7 @@
 	import { runOnFrames } from '@chasi/ui/utils'
 	import Spline from '$lib/Viz/Spline.svelte'
 
-	let points = 6
+	let points = 4
 	let spline = new BSpline(points, 2)
 
 	let stop: (() => void) | undefined
@@ -20,6 +20,8 @@
 			spline = spline
 		})
 	}
+
+	$: result = spline.evaluate(Math.random())
 </script>
 
 <div class="content d-flex gap-4 mb-4">
@@ -30,4 +32,7 @@
 	</div>
 </div>
 
-<Spline {spline} width={400} height={400} testPoints={100} helpers></Spline>
+<div class="d-flex gap-4 align-center">
+	<Spline {spline} width={400} height={400} testPoints={100} helpers></Spline>
+	<p>{result}</p>
+</div>

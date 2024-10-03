@@ -8,17 +8,15 @@ export class BSpline {
 
 	constructor(points = 4, degree = 2) {
 		this.#degree = degree
-		this.controlPoints = Array.from({ length: points }, () => randomNumber(0, 1))
+		this.controlPoints = Array.from({ length: points }, () => Math.random())
 		this.#knots = this.#generateKnotVector()
 	}
 
 	// Método para evaluar la curva en un valor t (entre 0 y 1)
 	evaluate(t: number): number {
-		if (t < 0) return 0
-		if (t > 1) return 1
-		// if (t < 0 || t > 1) {
-		// 	throw new Error('El valor de t debe estar entre 0 y 1.')
-		// }
+		if (t < 0 || t > 1) {
+			throw new Error(`El valor de t debe estar entre 0 y 1. recibido ${t}`)
+		}
 
 		let result = 0
 
@@ -73,7 +71,7 @@ export class BSpline {
 
 	mutate() {
 		this.controlPoints = this.controlPoints.map((n) => {
-			n += randomGaussian(0, 0.01)
+			n += randomGaussian(0, 0.1)
 			if (n > 1) n -= 0.01
 			if (n < 0) n += 0.01
 			return n

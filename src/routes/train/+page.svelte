@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Simulation } from '$lib/NEAT/Simulator'
-	import { createBoundPoints, isInsidePoly, randomGaussian, Vec2D } from '$lib/utils'
+	import { clamp, createBoundPoints, isInsidePoly, Vec2D } from '$lib/utils'
 	import { runOnFrames, linearScale, randomNumber } from '@chasi/ui/utils'
 	import { CLabel } from '@chasi/ui'
 	import { onMount } from 'svelte'
@@ -9,20 +9,18 @@
 	import Network from '$lib/Viz/Network.svelte'
 	import Bounding from './Bounding.svelte'
 	import { Brain } from '$lib/KAN/Brain'
-	// import type { Brain } from '$lib/TOY-MLP/Brain'
 
 	export let w = 600
 	export let h = 600
 
 	let simulate = true
-	let seeAll = true
-
-	const POPULATION_SIZE = 50
+	let seeAll = false
 	const TURN_RATE = 10
 
+	const POPULATION_SIZE = 50
 	class Spider {
-		pos: Vec2D = new Vec2D(300, 0)
-		target: Vec2D = new Vec2D(300, 550)
+		pos: Vec2D = new Vec2D(200, 0)
+		target: Vec2D = new Vec2D(randomNumber(0, w), 500)
 		dir = 0
 		brain: Brain
 		spiderBound: Vec2D[]
@@ -38,56 +36,57 @@
 		}
 
 		seek() {
-			const normalized = [
-				linearScale(this.pos.x, 0, w, 0, 1),
-				linearScale(this.pos.y, 0, w, 0, 1),
-				linearScale(this.target.x, 0, w, 0, 1),
-				linearScale(this.target.y, 0, w, 0, 1),
-				linearScale(this.dir, 0, 360, 0, 1),
-				linearScale(this.pos.degFromPoint(this.target), 0, 360, 0, 1)
+			const inputs = [
+				this.pos.x,
+				this.pos.y,
+				this.target.x,
+				this.target.y,
+				this.pos.distanceTo(this.target)
 			]
-			this.brain.forward(normalized)
+			const scaled = inputs.map((n) => linearScale(n, 0, w, 0, 1))
+			const clipped = scaled.map((n) => clamp(n, 0, 1))
+			this.brain.forward(clipped)
 
 			const out = this.brain.outputs
 
-			this.dir = linearScale(out[0], 0, 1, 0, 360)
-			this.maxSpeed = linearScale(out[1], 0, 1, 0, 10)
-
-			if (this.maxSpeed < 0) this.maxSpeed = 0
+			this.dir = linearScale(out[0], 0, 1, -360, 360)
+			this.dir = clamp(this.dir, -360, 360)
 
 			const rad = (Math.PI / 180) * (this.dir - 90)
-			this.pos.x += Math.cos(rad) * this.maxSpeed
-			this.pos.y += Math.sin(rad) * this.maxSpeed
+			let speed = linearScale(out[1], 0, 1, 0, this.maxSpeed)
+			this.pos.x += Math.cos(rad) * speed
+			this.pos.y += Math.sin(rad) * speed
+
+			this.pos.x = clamp(this.pos.x, 0, w)
+			this.pos.y = clamp(this.pos.y, 0, h)
 
 			this.spiderBound = createBoundPoints(8, this.pos, 30)
 
-			// Actualizar fitness
-			if (simulate && this !== bestSpider) {
-				this.updateFitness()
-			}
+			this.updateFitness()
 		}
 
 		updateFitness() {
 			let fit = 0
 			const distance = this.pos.distanceTo(this.target)
 
-			// Premiar la reducción en la distancia al objetivo
-			if (distance < this.prevDistance) {
-				fit += 1
-			}
+			// // Premiar la reducción en la distancia al objetivo
+			// if (distance < this.prevDistance) {
+			// 	fit += 0.5
+			// }
 
-			// Penalizar si la araña se mueve lejos del objetivo
-			if (distance > this.prevDistance) {
-				fit -= 1
-			}
+			// // Penalizar si la araña se mueve lejos del objetivo
+			// if (distance > this.prevDistance) {
+			// 	fit -= 0.5
+			// }
 
 			// Premiar la proximidad al objetivo
-			fit += 1 / (1 + distance)
+			fit += 2 / (1 + distance)
 
 			if (isInsidePoly(this.spiderBound, this.targetBound)) {
-				// this.target = new Vec2D(randomNumber(0, 600), 550)
-				// this.targetBound = createBoundPoints(4, this.target, 25)
 				fit += 1
+				this.target.x = randomNumber(0, w)
+				this.target.y = this.target.y > 200 ? 200 : 550
+				this.targetBound = createBoundPoints(4, this.target, 25)
 			}
 
 			this.fitness += Math.pow(fit, 2)
@@ -96,7 +95,7 @@
 	}
 
 	const simulation = new Simulation({
-		inputs: 6,
+		inputs: 5,
 		outputs: 2,
 		populationSize: POPULATION_SIZE,
 		createIndividual: (b) => new Spider(b)
@@ -105,12 +104,12 @@
 	let frames = 0
 	let generations = 0
 	let bestSpider = simulation.getBestIndividual()
-	let evolutionInterval = 5
+	let EVOLUTION_INTERVAL = 200
 	function update() {
 		frames++
-		if (frames % 10 === 0 && evolutionInterval < 500) evolutionInterval++
-		if (simulate) {
-			if (frames % evolutionInterval === 0) {
+		if (simulate || generations >= 1000) {
+			if (frames % 2000 === 0) EVOLUTION_INTERVAL += 5
+			if (frames % EVOLUTION_INTERVAL === 0) {
 				simulation.evolve()
 				generations = simulation.getGeneration()
 				bestSpider = simulation.getBestIndividual()
@@ -129,7 +128,7 @@
 	}
 
 	onMount(() => {
-		return runOnFrames(60, update)
+		return runOnFrames(120, update)
 	})
 </script>
 
@@ -144,6 +143,7 @@
 	{/if}
 	<p>generations: {generations}</p>
 	<p>best fitness: {bestSpider?.fitness}</p>
+	<p>frames to evolve: {EVOLUTION_INTERVAL}</p>
 </div>
 
 <div class="wrapper d-grid gap-2">
