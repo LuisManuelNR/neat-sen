@@ -34,7 +34,7 @@ export class Brain {
 	}
 
 	addLayer() {
-		const inputs = 1
+		const inputs = Math.round(randomNumber(0, 5))
 		const lastLayer = this.layers.at(-1)!
 		lastLayer.updateOutputs(inputs)
 		this.layers = [...this.layers, new Layer(inputs, this.#outputSize)]
@@ -44,7 +44,7 @@ export class Brain {
 		if (probably(this.#mutationRate)) {
 			this.layers.forEach((l) => l.mutate())
 		}
-		const complexityFactor = 0.1 / (this.layers.length + 1) // Disminuye a medida que la red crece
+		const complexityFactor = 1 / (this.layers.length + 1) // Disminuye a medida que la red crece
 		if (probably(this.#mutationLayerRate * complexityFactor)) {
 			this.addLayer()
 		}
