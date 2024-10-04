@@ -15,10 +15,18 @@
 
 	let x = range([0, 1], testPoints)
 	$: y = x.map((n) => spline.evaluate(n))
+
+	const margin = helpers ? 40 : 0
 </script>
 
 <div class="spline" style:width="{width}px">
-	<CGraph {height}>
+	<CGraph
+		{height}
+		marginBottom={margin}
+		marginLeft={margin}
+		marginRight={margin}
+		marginTop={margin}
+	>
 		<CPath domainX={DOMAIN} domainY={DOMAIN} {x} {y} color="var(--brand)"></CPath>
 		{#if helpers}
 			<CAxisX domain={DOMAIN} ticksNumber={5}></CAxisX>

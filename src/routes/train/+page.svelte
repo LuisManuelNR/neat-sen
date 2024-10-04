@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Simulation } from '$lib/NEAT/Simulator'
-	import { clamp, createBoundPoints, isInsidePoly, Vec2D } from '$lib/utils'
-	import { runOnFrames, linearScale, randomNumber } from '@chasi/ui/utils'
+	import { clamp, createBoundPoints, denormalize, isInsidePoly, normalize, Vec2D } from '$lib/utils'
+	import { runOnFrames, linearScale, randomNumber, max, min } from '@chasi/ui/utils'
 	import { CLabel } from '@chasi/ui'
 	import { onMount } from 'svelte'
 	import Target from './Target.svelte'
@@ -41,19 +41,20 @@
 				this.pos.y,
 				this.target.x,
 				this.target.y,
-				this.pos.distanceTo(this.target)
+				this.pos.degFromPoint(this.target)
 			]
-			const scaled = inputs.map((n) => linearScale(n, 0, w, 0, 1))
-			const clipped = scaled.map((n) => clamp(n, 0, 1))
-			this.brain.forward(clipped)
+			const minI = min(inputs)
+			const maxI = max(inputs)
+			const normalized = inputs.map((n) => normalize(n, minI, maxI))
+			this.brain.forward(normalized)
 
 			const out = this.brain.outputs
 
-			this.dir = linearScale(out[0], 0, 1, -360, 360)
-			this.dir = clamp(this.dir, -360, 360)
+			this.dir = linearScale(out[0], 0, 1, 0, 360)
 
 			const rad = (Math.PI / 180) * (this.dir - 90)
 			let speed = linearScale(out[1], 0, 1, 0, this.maxSpeed)
+
 			this.pos.x += Math.cos(rad) * speed
 			this.pos.y += Math.sin(rad) * speed
 
@@ -67,30 +68,18 @@
 
 		updateFitness() {
 			let fit = 0
-			const distance = this.pos.distanceTo(this.target)
-
-			// // Premiar la reducción en la distancia al objetivo
-			// if (distance < this.prevDistance) {
-			// 	fit += 0.5
-			// }
-
-			// // Penalizar si la araña se mueve lejos del objetivo
-			// if (distance > this.prevDistance) {
-			// 	fit -= 0.5
-			// }
-
-			// Premiar la proximidad al objetivo
-			fit += 2 / (1 + distance)
 
 			if (isInsidePoly(this.spiderBound, this.targetBound)) {
 				fit += 1
 				this.target.x = randomNumber(0, w)
 				this.target.y = this.target.y > 200 ? 200 : 550
 				this.targetBound = createBoundPoints(4, this.target, 25)
+			} else {
+				const distance = this.pos.distanceTo(this.target)
+				fit += 1 / (1 + distance)
 			}
 
-			this.fitness += Math.pow(fit, 2)
-			this.prevDistance = distance
+			this.fitness += fit
 		}
 	}
 

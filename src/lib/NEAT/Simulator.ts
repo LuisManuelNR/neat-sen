@@ -7,7 +7,7 @@ type NEATOptions<T extends { brain: Brain }> = {
 	createIndividual: (brain: Brain) => T
 }
 
-export class Simulation<T extends { brain: Brain, fitness: number }> {
+export class Simulation<T extends { brain: Brain; fitness: number }> {
 	population: T[]
 	#populationSize: number
 	#generation: number = 0
@@ -33,11 +33,10 @@ export class Simulation<T extends { brain: Brain, fitness: number }> {
 	}
 
 	evolve() {
-		this.#updateBest()
 		this.#generation++
 		this.#normalizeFitness()
 		this.#selection() // Seleccionar los mejores individuos y mutar
-		this.#mutate()
+		this.#updateBest()
 	}
 
 	#normalizeFitness() {
@@ -52,26 +51,23 @@ export class Simulation<T extends { brain: Brain, fitness: number }> {
 	}
 
 	#updateBest() {
-		this.population.sort((a, b) => b.fitness - a.fitness)
-		// if (this.population[0].brain.fitness > this.#best.brain.fitness) {
-		// 	this.#best = this.#createIndividual(this.population[0].brain.clone())
-		// 	this.#best.brain.fitness = this.population[0].brain.fitness
-		// }
 		this.#best = this.#createIndividual(this.population[0].brain.clone())
 	}
 
 	#selection() {
+		this.population.sort((a, b) => b.fitness - a.fitness)
+		const elitismCount = Math.floor(0.1 * this.#populationSize)
+
+		const elitists = this.population.slice(0, elitismCount)
+		// const rest = this.population.slice(elitismCount, this.#populationSize)
+
 		const selected = []
-		while (selected.length < this.#populationSize) {
+		while (selected.length < this.#populationSize - elitismCount) {
 			const winner = this.#poolSelecion(this.population)
 			selected.push(winner)
 		}
 
-		this.population = selected
-	}
-
-	#mutate() {
-		this.population.forEach((p) => p.brain.mutate())
+		this.population = [...elitists, ...selected]
 	}
 
 	#poolSelecion(poulacho: T[]) {
@@ -95,7 +91,9 @@ export class Simulation<T extends { brain: Brain, fitness: number }> {
 
 		// Make sure it's a copy!
 		// (this includes mutation)
-		return this.#createIndividual(poulacho[index].brain.clone())
+		const winner = this.#createIndividual(poulacho[index].brain.clone())
+		winner.brain.mutate()
+		return winner
 	}
 	// Obtener el mejor individuo basado en el fitness
 	getBestIndividual() {

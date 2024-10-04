@@ -123,3 +123,7 @@ export function runEveryFrames(fps = 30, callback: () => void) {
 	// Retorna una función para cancelar la ejecución de frames
 	return () => clearTimeout(timeoutId)
 }
+
+export function probably(rate: number) {
+	return Math.random() < rate
+}

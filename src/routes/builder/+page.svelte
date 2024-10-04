@@ -10,7 +10,7 @@
 		network = network
 	}
 	function handleForward() {
-		const inputSamples = Array.from({ length: network.inputs.length }, () => randomNumber(0, 1))
+		const inputSamples = Array.from({ length: network.inputs.length }, () => Math.random())
 		network.forward(inputSamples)
 		network = network
 	}

@@ -4,8 +4,8 @@
 	import { runOnFrames } from '@chasi/ui/utils'
 	import Spline from '$lib/Viz/Spline.svelte'
 
-	let points = 4
-	let spline = new BSpline(points, 2)
+	let points = 20
+	let spline = new BSpline(points)
 
 	let stop: (() => void) | undefined
 
