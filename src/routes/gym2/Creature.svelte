@@ -1,15 +1,15 @@
 <script lang="ts">
-	export let x = 0
-	export let y = 0
-	export let direction = 0
+	import type { Vec2D } from '$lib/utils'
+
+	export let pos: Vec2D
 	export let color = ''
 </script>
 
 <svg
 	xmlns="http://www.w3.org/2000/svg"
 	fill={color}
-	style:translate="{x - 50}px {y - 50}px"
-	style:rotate="{direction}deg"
+	style:translate="{pos.x - 50}px {pos.y - 50}px"
+	style:rotate="{pos.direccion}deg"
 	width="800"
 	height="800"
 	viewBox="0 0 592.574 592.573"

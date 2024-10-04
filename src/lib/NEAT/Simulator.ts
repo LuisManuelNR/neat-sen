@@ -36,7 +36,6 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 		this.#generation++
 		this.#normalizeFitness()
 		this.#selection() // Seleccionar los mejores individuos y mutar
-		this.#updateBest()
 	}
 
 	#normalizeFitness() {
@@ -50,15 +49,17 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 		})
 	}
 
-	#updateBest() {
-		this.#best = this.#createIndividual(this.population[0].brain.clone())
-	}
-
 	#selection() {
 		this.population.sort((a, b) => b.fitness - a.fitness)
+
+		this.#best = this.#createIndividual(this.population[0].brain.clone())
+		this.#best.fitness = this.population[0].fitness
+
 		const elitismCount = Math.floor(0.1 * this.#populationSize)
 
-		const elitists = this.population.slice(0, elitismCount)
+		const elitists = this.population
+			.slice(0, elitismCount)
+			.map((el) => this.#createIndividual(el.brain.clone()))
 		// const rest = this.population.slice(elitismCount, this.#populationSize)
 
 		const selected = []

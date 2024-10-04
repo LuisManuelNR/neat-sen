@@ -1,22 +1,16 @@
-<script lang="ts" context="module">
-	const DOMAIN: [number, number] = [0, 1]
-</script>
-
 <script lang="ts">
-	import type { BSpline } from '$lib/KAN/BSpline'
-	import { range } from '$lib/utils'
 	import { CGraph, CPath, CAxisX, CAxisY } from '@chasi/ui/graph'
+	import { max, min } from '@chasi/ui/utils'
 
-	export let spline: BSpline
+	export let x: number[] = []
+	export let y: number[] = []
 	export let width = 50
 	export let height = 50
-	export let testPoints = 20
 	export let helpers = false
 
-	let x = range([0, 1], testPoints)
-	$: y = x.map((n) => spline.evaluate(n))
-
 	const margin = helpers ? 40 : 0
+	$: domainX = [min(x), max(x)] as [number, number]
+	$: domainY = [min(y), max(y)] as [number, number]
 </script>
 
 <div class="spline" style:width="{width}px">
@@ -27,10 +21,10 @@
 		marginRight={margin}
 		marginTop={margin}
 	>
-		<CPath domainX={DOMAIN} domainY={DOMAIN} {x} {y} color="var(--brand)"></CPath>
+		<CPath {domainX} {domainY} {x} {y} color="var(--brand)"></CPath>
 		{#if helpers}
-			<CAxisX domain={DOMAIN} ticksNumber={5}></CAxisX>
-			<CAxisY domain={DOMAIN} ticksNumber={5}></CAxisY>
+			<CAxisX domain={domainX} ticksNumber={5}></CAxisX>
+			<CAxisY domain={domainY} ticksNumber={5}></CAxisY>
 		{/if}
 	</CGraph>
 </div>

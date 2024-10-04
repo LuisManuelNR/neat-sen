@@ -14,7 +14,7 @@ export class Layer {
 
 		// Crear splines para cada combinación de input y output
 		for (let i = 0; i < outputs * inputs; i++) {
-			this.splines.push(new BSpline(20))
+			this.splines.push(new BSpline(8))
 		}
 	}
 
@@ -39,6 +39,26 @@ export class Layer {
 		this.splines.forEach((spline) => {
 			spline.mutate()
 		})
+	}
+
+	updateOutputs(newOutputs: number) {
+		const newSplines: BSpline[] = []
+
+		// Mantener los splines antiguos si es posible
+		for (let o = 0; o < newOutputs; o++) {
+			for (let i = 0; i < this.inputs; i++) {
+				const oldIndex = o * this.inputs + i
+				if (o < this.outputs) {
+					newSplines.push(this.splines[oldIndex]) // Mantener spline existente
+				} else {
+					newSplines.push(new BSpline(8)) // Crear nuevos splines si es necesario
+				}
+			}
+		}
+
+		// Actualizar outputs y los splines
+		this.outputs = newOutputs
+		this.splines = newSplines
 	}
 
 	clone(): Layer {

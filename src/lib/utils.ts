@@ -49,32 +49,53 @@ export function denormalize(normalizedValue: number, min: number, max: number): 
 
 export class Vec2D {
 	values: [number, number]
+	direccion = 0
 	constructor(x: number, y: number) {
 		this.values = [x, y]
 	}
+
 	get x() {
 		return this.values[0]
 	}
+
 	get y() {
 		return this.values[1]
 	}
+
 	set x(value: number) {
 		this.values[0] = value
 	}
+
 	set y(value: number) {
 		this.values[1] = value
 	}
 
-	degFromPoint(point: Vec2D) {
-		const deltaX = point.x - this.x
-		const deltaY = point.y - this.y
-		const rad = Math.atan2(deltaY, deltaX)
-		return rad * (180 / Math.PI)
-	}
+	// Método para obtener la distancia a otro punto
 	distanceTo(point: Vec2D): number {
 		const deltaX = point.x - this.x
 		const deltaY = point.y - this.y
 		return Math.hypot(deltaX, deltaY)
+	}
+
+	// Método para avanzar en la dirección actual del vector
+	forward(speed: number) {
+		const rad = (Math.PI / 180) * (this.direccion - 90) // Convertir grados a radianes
+		this.x += speed * Math.cos(rad)
+		this.y += speed * Math.sin(rad)
+	}
+	// Método para calcular la magnitud (longitud) del vector
+	magnitude(): number {
+		return Math.hypot(this.x, this.y)
+	}
+
+	// Método para normalizar el vector (hace que su magnitud sea 1)
+	normalize() {
+		const magnitud = this.magnitude()
+
+		if (magnitud !== 0) {
+			this.x = this.x / magnitud
+			this.y = this.y / magnitud
+		}
 	}
 }
 

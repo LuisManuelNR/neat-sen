@@ -3,15 +3,19 @@
 	import Network from '$lib/Viz/Network.svelte'
 	import { randomNumber, runOnFrames } from '@chasi/ui/utils'
 
-	let network = new Brain(3, 2)
+	let inputsSize = 3
+	let outputsSize = 2
+
+	let inputs = Array.from({ length: inputsSize }, () => Math.random())
+	let outputs = Array.from({ length: outputsSize }, () => 0)
+	let network = new Brain(inputsSize, outputsSize)
 
 	function handleAddLayer() {
 		network.addLayer()
 		network = network
 	}
 	function handleForward() {
-		const inputSamples = Array.from({ length: network.inputs.length }, () => Math.random())
-		network.forward(inputSamples)
+		network.forward(inputs)
 		network = network
 	}
 
@@ -43,7 +47,7 @@
 			<button class="btn" on:click={handleMutate}> mutate </button>
 		{/if}
 	</div>
-	<Network {network}></Network>
+	<Network {inputs} {outputs} {network}></Network>
 </div>
 
 <style>

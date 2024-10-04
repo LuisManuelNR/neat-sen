@@ -7,7 +7,8 @@
 		{ href: '/', text: 'Home' },
 		{ href: '/bspline', text: 'BSpline' },
 		{ href: '/builder', text: 'Network Builder' },
-		{ href: '/train', text: 'Gym 1' }
+		{ href: '/gym1', text: 'Gym 1' },
+		{ href: '/gym2', text: 'Gym 2' }
 	]
 </script>
 

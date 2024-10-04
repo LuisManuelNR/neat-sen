@@ -12,8 +12,6 @@ export class Brain {
 	#outputSize: number
 	#mutationRate: number
 	#mutationLayerRate: number
-	inputs: number[]
-	outputs: number[]
 
 	constructor(inputSize: number, outputSize: number, opt?: BrainOptions) {
 		this.#inputSize = inputSize
@@ -22,28 +20,24 @@ export class Brain {
 		this.#mutationRate = opt?.mutationRate || 0.3
 		this.#mutationLayerRate = opt?.mutationLayerRate || 0.01
 
-		this.inputs = new Array(this.#inputSize).fill(0)
-		this.outputs = new Array(this.#outputSize).fill(0)
-
 		this.layers = [new Layer(inputSize, outputSize)]
 	}
 
 	forward(inputs: number[]) {
-		this.inputs = inputs
-
 		// Propagar a través de todas las capas
-		let outputs = this.inputs
+		let outputs = inputs
 		for (const layer of this.layers) {
 			outputs = layer.forward(outputs)
 		}
 
-		this.outputs = outputs
+		return outputs
 	}
 
 	addLayer() {
-		const inputs = this.layers.at(-1)!.outputs
-		const outputs = Math.floor(randomNumber(1, 9))
-		this.layers = [...this.layers, new Layer(inputs, outputs), new Layer(outputs, this.#outputSize)]
+		const inputs = 1
+		const lastLayer = this.layers.at(-1)!
+		lastLayer.updateOutputs(inputs)
+		this.layers = [...this.layers, new Layer(inputs, this.#outputSize)]
 	}
 
 	mutate() {
@@ -51,7 +45,7 @@ export class Brain {
 			this.layers.forEach((l) => l.mutate())
 		}
 		const complexityFactor = 0.1 / (this.layers.length + 1) // Disminuye a medida que la red crece
-		if (probably(complexityFactor)) {
+		if (probably(this.#mutationLayerRate * complexityFactor)) {
 			this.addLayer()
 		}
 	}

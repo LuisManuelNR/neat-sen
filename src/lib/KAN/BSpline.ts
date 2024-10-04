@@ -1,4 +1,4 @@
-import { randomGaussian } from '$lib/utils'
+import { probably, randomGaussian } from '$lib/utils'
 
 export class BSpline {
 	controlPoints: number[]
@@ -9,6 +9,9 @@ export class BSpline {
 		this.#degree = points - 1
 		this.controlPoints = Array.from({ length: points }, () => Math.random())
 		this.#knots = this.#generateKnotVector()
+		this.evaluate = this.evaluate.bind(this)
+		this.mutate = this.mutate.bind(this)
+		this.clone = this.clone.bind(this)
 	}
 
 	// Método para evaluar la curva en un valor t (entre 0 y 1)
@@ -53,10 +56,13 @@ export class BSpline {
 	}
 
 	mutate() {
+		const step = 0.1
 		this.controlPoints = this.controlPoints.map((n) => {
-			n += randomGaussian(0, 0.01)
-			if (n > 1) n -= 0.01
-			if (n < 0) n += 0.01
+			if (probably(0.3)) {
+				n += randomGaussian(0, step)
+				if (n > 1) n -= step
+				if (n < 0) n += step
+			}
 			return n
 		})
 		this.#knots = this.#generateKnotVector()

@@ -1,20 +1,20 @@
 <script lang="ts">
+	import type { Vec2D } from '$lib/utils'
 	import { pannable } from '@chasi/ui/actions'
 
-	export let x = 0
-	export let y = 0
+	export let pos: Vec2D
 
 	function setup(node: HTMLElement) {
 		return pannable(node, {
 			onMove(e, coords) {
-				x += coords.dx
-				y += coords.dy
+				pos.x += coords.dx
+				pos.y += coords.dy
 			}
 		})
 	}
 </script>
 
-<div style:translate="{x - 25}px {y - 25}px" use:setup></div>
+<div style:translate="{pos.x - 25}px {pos.y - 25}px" use:setup></div>
 
 <style>
 	div {
