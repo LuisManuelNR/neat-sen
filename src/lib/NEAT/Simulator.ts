@@ -14,7 +14,6 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 	#createIndividual: (brain: Brain) => T
 	#inputs: number
 	#outputs: number
-	#best: T
 
 	constructor(opt: NEATOptions<T>) {
 		this.#populationSize = opt.populationSize
@@ -28,8 +27,6 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 			const brain = new Brain(this.#inputs, this.#outputs)
 			this.population.push(this.#createIndividual(brain))
 		}
-		const brain = new Brain(this.#inputs, this.#outputs)
-		this.#best = this.#createIndividual(brain)
 	}
 
 	evolve() {
@@ -41,7 +38,6 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 	#normalizeFitness() {
 		let sum = 0
 		this.population.forEach((indi) => {
-			indi.fitness = Math.pow(indi.fitness, 2)
 			sum += indi.fitness
 		})
 		this.population.forEach((indi) => {
@@ -50,56 +46,67 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 	}
 
 	#selection() {
+		// Ordena la población por fitness de mayor a menor
 		this.population.sort((a, b) => b.fitness - a.fitness)
 
-		this.#best = this.#createIndividual(this.population[0].brain.clone())
+		// Calcula el número de elitistas
+		const elitistas = Math.floor(0.1 * this.#populationSize)
 
-		const elitismCount = Math.floor(0.1 * this.#populationSize)
+		// Selecciona los elitistas
+		const elitists = this.population
+			.slice(0, elitistas)
+			.map((a) => this.#createIndividual(a.brain.clone()))
 
-		const elitists = this.population.slice(0, elitismCount)
-		// const rest = this.population.slice(elitismCount, this.#populationSize)
+		// El resto de la población, excluyendo elitistas
+		const rest = this.population.slice(elitistas)
 
 		const selected = []
-		while (selected.length < this.#populationSize - elitismCount) {
-			const winner = this.#poolSelecion(this.population)
+		// Selección por torneo hasta llenar la selección
+		while (selected.length < this.#populationSize - elitistas) {
+			const winner = this.#poolSelecion(rest)
 			selected.push(winner)
 		}
 
+		// Actualiza la población combinando elitistas, seleccionados y nuevos individuos
 		this.population = [...elitists, ...selected]
 	}
 
 	#poolSelecion(poulacho: T[]) {
+		// Pick a random number between 0 and sum of all fitness
+		let totalFitness = poulacho.reduce((sum, individual) => sum + individual.fitness, 0)
+		let r = Math.random() * totalFitness
+
 		// Start at 0
 		let index = 0
 
-		// Pick a random number between 0 and 1
-		let r = Math.random()
-
-		// Keep subtracting probabilities until you get less than zero
-		// Higher probabilities will be more likely to be fixed since they will
-		// subtract a larger number towards zero
-		while (r > 0) {
+		// Keep subtracting fitness until r reaches 0 or less
+		while (r > 0 && index < poulacho.length) {
 			r -= poulacho[index].fitness
-			// And move on to the next
 			index += 1
 		}
 
-		// Go back one
-		index -= 1
+		// Adjust index to make sure it's valid
+		index = Math.max(0, index - 1)
 
-		// Make sure it's a copy!
-		// (this includes mutation)
+		// Create a new individual from the winner and apply mutation
 		const winner = this.#createIndividual(poulacho[index].brain.clone())
 		winner.brain.mutate()
 		return winner
 	}
-	// Obtener el mejor individuo basado en el fitness
-	getBestIndividual() {
-		return this.#best
-	}
-
 	// Obtener la generación actual
 	getGeneration(): number {
 		return this.#generation
 	}
+}
+
+function tieneElementosConMismaReferencia<T>(lista: T[]): boolean {
+	for (let i = 0; i < lista.length; i++) {
+		for (let j = i + 1; j < lista.length; j++) {
+			// Comparamos referencias directamente
+			if (lista[i] === lista[j]) {
+				return true // Hay dos elementos que comparten la misma referencia
+			}
+		}
+	}
+	return false // No se encontraron elementos con la misma referencia
 }

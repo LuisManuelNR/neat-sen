@@ -34,8 +34,7 @@ export function isInsidePoly(source: Vec2D[], target: Vec2D[]) {
 	const _t = target.map((v) => v.values)
 	for (let i = 0; i < source.length; i++) {
 		const vertice = source[i]
-		// @ts-ignore
-		if (isInside(vertice.toArray(), _t)) return true
+		if (isInside(vertice.values, _t)) return true
 	}
 	return false
 }
@@ -98,126 +97,70 @@ export function probably(rate: number) {
 	return Math.random() < rate
 }
 
-export class VecN {
-	values: number[]
-	constructor(...components: number[]) {
-		this.values = components
-	}
+export class Vec2D {
+	direccion: number // dirección en grados
+	x: number
+	y: number
 
-	// Obtener un valor en una dimensión específica
-	getComponent(index: number): number {
-		return this.values[index]
-	}
-
-	// Establecer un valor en una dimensión específica
-	setComponent(index: number, value: number) {
-		this.values[index] = value
-	}
-
-	toArray() {
-		return [...this.values]
-	}
-
-	// Método para obtener la distancia a otro punto en N dimensiones
-	distanceTo(point: VecN): number {
-		if (this.values.length !== point.values.length) {
-			throw new Error("Los vectores deben tener el mismo número de dimensiones")
-		}
-
-		let sum = 0
-		for (let i = 0; i < this.values.length; i++) {
-			const delta = point.values[i] - this.values[i]
-			sum += delta * delta
-		}
-		return Math.sqrt(sum)
-	}
-
-	// Método para calcular la magnitud (longitud) del vector
-	magnitude(): number {
-		let sum = 0
-		for (let i = 0; i < this.values.length; i++) {
-			sum += this.values[i] * this.values[i]
-		}
-		return Math.sqrt(sum)
-	}
-
-	// Método para normalizar el vector (hace que su magnitud sea 1)
-	normalize() {
-		const magnitud = this.magnitude()
-		if (magnitud !== 0) {
-			for (let i = 0; i < this.values.length; i++) {
-				this.values[i] /= magnitud
-			}
-		}
-		return this
-	}
-
-	// **Nuevo método para obtener el ángulo con respecto a otro vector en N dimensiones**
-	angleTo(other: VecN): number {
-		if (this.values.length !== other.values.length) {
-			throw new Error("Los vectores deben tener el mismo número de dimensiones")
-		}
-
-		// Producto punto
-		let dotProduct = 0
-		for (let i = 0; i < this.values.length; i++) {
-			dotProduct += this.values[i] * other.values[i]
-		}
-
-		// Magnitudes de los dos vectores
-		const magnitude1 = this.magnitude()
-		const magnitude2 = other.magnitude()
-
-		// Asegurarse de que no haya divisiones por 0
-		if (magnitude1 === 0 || magnitude2 === 0) {
-			return 0 // Retorna NaN si alguno de los vectores tiene magnitud cero
-		}
-
-		// Cálculo del ángulo en radianes usando la fórmula del producto punto
-		const angleRad = Math.acos(dotProduct / (magnitude1 * magnitude2))
-
-		// Convertir el ángulo a grados
-		const angleDeg = (angleRad * 180) / Math.PI
-		return angleDeg
-	}
-}
-
-export class Vec2D extends VecN {
-	direccion: number
 	constructor(x: number, y: number) {
-		super(x, y)
-		this.direccion = 0
-	}
-	get x() {
-		return this.getComponent(0)
-	}
-	get y() {
-		return this.getComponent(1)
-	}
-	set x(v: number) {
-		this.setComponent(0, v)
-	}
-	set y(v: number) {
-		this.setComponent(0, v)
+		this.direccion = 0 // Asignamos una dirección inicial (0 grados)
+		this.x = x
+		this.y = y
 	}
 
-	// Método para avanzar en la dirección actual del vector (solo en 2D o 3D)
+	get values(): [number, number] {
+		return [this.x, this.y]
+	}
+
+	// Método para avanzar en la dirección actual del vector
 	forward(speed: number) {
-		if (this.values.length < 2) {
-			throw new Error("El método forward solo se aplica a vectores de 2 o más dimensiones")
-		}
-		const rad = (Math.PI / 180) * (this.direccion - 90) // Convertir grados a radianes
-		this.values[0] += speed * Math.cos(rad)
-		this.values[1] += speed * Math.sin(rad)
+		const rad = (Math.PI / 180) * this.direccion // Convertir grados a radianes
+		this.x += speed * Math.cos(rad) // Cambia la posición en el eje x
+		this.y += speed * Math.sin(rad) // Cambia la posición en el eje y
 	}
 
-	// Método para retroceder en la dirección actual del vector (solo en 2D o 3D)
+	// Método para retroceder en la dirección actual del vector
 	backward(speed: number) {
-		if (this.values.length < 2) {
-			throw new Error("El método backward solo se aplica a vectores de 2 o más dimensiones")
-		}
-		const rad = (Math.PI / 180) * (this.direccion - 90) // Convertir grados a radianes
-		this.values[0] -= speed * Math.cos(rad)
-		this.values[1] -= speed * Math.sin(rad)
+		const rad = (Math.PI / 180) * this.direccion // Convertir grados a radianes
+		this.x -= speed * Math.cos(rad) // Cambia la posición en el eje x en dirección opuesta
+		this.y -= speed * Math.sin(rad) // Cambia la posición en el eje y en dirección opuesta
+	}
+
+	// Método para calcular la distancia entre dos vectores
+	distanceTo(v: Vec2D): number {
+		const dx = this.x - v.x // Diferencia en el eje x
+		const dy = this.y - v.y // Diferencia en el eje y
+		return Math.sqrt(dx * dx + dy * dy) // Pitágoras para calcular la distancia
+	}
+
+	// Método clamp para restringir el valor dentro de un rango por cada eje
+	clamp(minX: number, maxX: number, minY: number, maxY: number) {
+		this.x = Math.max(minX, Math.min(this.x, maxX)) // Restringir x dentro del rango [minX, maxX]
+		this.y = Math.max(minY, Math.min(this.y, maxY)) // Restringir y dentro del rango [minY, maxY]
+	}
+
+	// Método para calcular el producto escalar con otro vector
+	dot(v: Vec2D): number {
+		return this.x * v.x + this.y * v.y // Producto escalar en 2D
+	}
+
+	// Método para determinar si este vector está apuntando hacia otro (0 a 1)
+	isPointingTo(other: Vec2D): number {
+		const dotProduct = this.dot(other)
+		const magnitudes = this.magnitude() * other.magnitude()
+
+		// Evitar divisiones por cero
+		if (magnitudes === 0) return 0
+
+		// Calculamos el coseno del ángulo entre los dos vectores
+		const cosTheta = dotProduct / magnitudes
+
+		// Mapear el valor de cosTheta de -1 a 1 en el rango de 0 a 1
+		return (cosTheta + 1) / 2
+	}
+
+	// Método auxiliar para calcular la magnitud del vector
+	magnitude(): number {
+		return Math.sqrt(this.x * this.x + this.y * this.y) // Magnitud (longitud) del vector
 	}
 }

@@ -9,7 +9,7 @@
 	xmlns="http://www.w3.org/2000/svg"
 	fill={color}
 	style:translate="{pos.x - 50}px {pos.y - 50}px"
-	style:rotate="{pos.direccion}deg"
+	style:rotate="{pos.direccion + 90}deg"
 	width="800"
 	height="800"
 	viewBox="0 0 592.574 592.573"

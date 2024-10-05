@@ -1,6 +1,7 @@
 import { max } from '@chasi/ui/utils'
 import { BSpline } from './BSpline'
 import { relu, silu } from './funcs'
+import { clamp, probably } from '$lib/utils'
 let layers = 0
 export class Layer {
 	splines: BSpline[] = []
@@ -32,12 +33,14 @@ export class Layer {
 				results[o] += this.splines[splineIndex].evaluate(inputs[i])
 			}
 		}
-		return results.map((n) => n / this.inputs)
+		return results.map((n) => clamp(n / this.inputs, 0, 1))
 	}
 
 	mutate() {
 		this.splines.forEach((spline) => {
-			spline.mutate()
+			if (probably(0.3)) {
+				spline.mutate()
+			}
 		})
 	}
 

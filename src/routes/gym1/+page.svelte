@@ -9,26 +9,19 @@
 	import Network from '$lib/Viz/Network.svelte'
 	import { Brain } from '$lib/KAN/Brain'
 	import Spline from '$lib/Viz/Spline.svelte'
+	import { BSpline } from '$lib/KAN/BSpline'
 
 	let simulate = false
 	let seeAll = false
 
-	function complexFunction(x1: number, x2: number, x3: number, x4: number): number {
-		// Calculamos cada parte de la ecuación
-		const term1 = Math.sin(x1 ** 2 + x2 ** 2)
-		const term2 = Math.sin(x3 ** 2 + x4 ** 2)
-
-		// Sumamos ambos términos y aplicamos la exponencial
-		return Math.exp(term1 + term2)
-	}
-
 	const x = range([0, 1], 100)
+	const targetSpline = new BSpline(20)
 	const target = {
-		evaluate: () => x.map((n) => complexFunction(n, n, n, n))
+		evaluate: () => x.map(targetSpline.evaluate)
 	}
 
 	const POPULATION_SIZE = 50
-	const INPUT_SIZE = 4
+	const INPUT_SIZE = 1
 	const OUTPUT_SIZE = 1
 
 	class Agent {
@@ -40,15 +33,15 @@
 		constructor(b: Brain) {
 			this.brain = b
 			this.outputs = [0]
-			this.inputs = [Math.random(), Math.random(), Math.random(), Math.random()]
+			this.inputs = [Math.random()]
 		}
 
 		train() {
 			const value = Math.random()
-			this.inputs = [value, value, value, value]
+			this.inputs = [value]
 			this.outputs = this.brain.forward(this.inputs)
 
-			const real = complexFunction(value, value, value, value)
+			const real = targetSpline.evaluate(value)
 			const realNorm = normalize(real, 0, 8)
 			const error = Math.pow(this.outputs[0] - realNorm, 2)
 
@@ -56,7 +49,7 @@
 		}
 
 		evaluate() {
-			return x.map((n) => this.brain.forward([n, n, n, n])[0])
+			return x.map((n) => this.brain.forward([n])[0])
 		}
 	}
 
@@ -69,14 +62,13 @@
 
 	let frames = 0
 	let generations = 0
-	let best = simulation.getBestIndividual()
+	$: best = simulation.population[0]
 	function update() {
 		frames++
 		if (simulate || generations >= 2000) {
 			if (frames % 100 === 0) {
 				simulation.evolve()
 				generations = simulation.getGeneration()
-				best = simulation.getBestIndividual()
 			}
 			simulation.population.forEach((s, i) => {
 				s.train()
