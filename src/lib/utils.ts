@@ -98,14 +98,14 @@ export function probably(rate: number) {
 }
 
 export class Vec2D {
-	direccion: number // dirección en grados
 	x: number
 	y: number
+	angle: number
 
 	constructor(x: number, y: number) {
-		this.direccion = 0 // Asignamos una dirección inicial (0 grados)
 		this.x = x
 		this.y = y
+		this.angle = 0 // in radians
 	}
 
 	get values(): [number, number] {
@@ -114,16 +114,8 @@ export class Vec2D {
 
 	// Método para avanzar en la dirección actual del vector
 	forward(speed: number) {
-		const rad = (Math.PI / 180) * this.direccion // Convertir grados a radianes
-		this.x += speed * Math.cos(rad) // Cambia la posición en el eje x
-		this.y += speed * Math.sin(rad) // Cambia la posición en el eje y
-	}
-
-	// Método para retroceder en la dirección actual del vector
-	backward(speed: number) {
-		const rad = (Math.PI / 180) * this.direccion // Convertir grados a radianes
-		this.x -= speed * Math.cos(rad) // Cambia la posición en el eje x en dirección opuesta
-		this.y -= speed * Math.sin(rad) // Cambia la posición en el eje y en dirección opuesta
+		this.x += speed * Math.cos(this.angle) // Cambia la posición en el eje x
+		this.y += speed * Math.sin(this.angle) // Cambia la posición en el eje y
 	}
 
 	// Método para calcular la distancia entre dos vectores
@@ -139,28 +131,31 @@ export class Vec2D {
 		this.y = Math.max(minY, Math.min(this.y, maxY)) // Restringir y dentro del rango [minY, maxY]
 	}
 
-	// Método auxiliar para calcular la magnitud del vector
-	magnitude(): number {
-		return Math.sqrt(this.x * this.x + this.y * this.y) // Magnitud (longitud) del vector
+	lengthSq() {
+		return this.x * this.x + this.y * this.y
+	}
+
+	dot(v: Vec2D) {
+		return this.x * v.x + this.y * v.y
 	}
 
 	angleTo(v: Vec2D): number {
-		const dotProduct = this.x * v.x + this.y * v.y // Producto punto
-		const magnitudeA = this.magnitude() // Magnitud del vector actual
-		const magnitudeB = v.magnitude() // Magnitud del vector v
+		const translatedVx = v.x - this.x
+		const translatedVy = v.y - this.y
 
-		// Evitar división por cero
-		if (magnitudeA === 0 || magnitudeB === 0) {
-			throw new Error("Uno de los vectores tiene magnitud cero.")
-		}
+		// Crear un vector trasladado para realizar el cálculo del ángulo
+		const translatedV = new Vec2D(translatedVx, translatedVy)
 
-		// Calcular el coseno del ángulo
-		const cosTheta = dotProduct / (magnitudeA * magnitudeB)
+		// Calcular el denominador: producto de las magnitudes de 'this' y 'translatedV'
+		const denominator = Math.sqrt(this.lengthSq() * translatedV.lengthSq())
 
-		// Asegurarse de que el valor esté dentro del dominio de acos (-1, 1)
-		const clampedCosTheta = Math.max(-1, Math.min(1, cosTheta))
+		// Si el denominador es cero (longitud de algún vector es 0), devolvemos PI/2 como caso especial
+		if (denominator === 0) return Math.PI / 2
 
-		// Retornar el ángulo en grados
-		return Math.acos(clampedCosTheta) * (180 / Math.PI) // Convertir a grados
+		// Calcular el coseno del ángulo usando el producto punto y el denominador
+		const theta = this.dot(translatedV) / denominator
+
+		// Asegurarse de que el valor esté en el rango [-1, 1] para evitar errores con Math.acos
+		return Math.acos(clamp(theta, -1, 1))
 	}
 }

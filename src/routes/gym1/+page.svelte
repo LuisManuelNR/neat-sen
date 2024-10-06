@@ -15,12 +15,12 @@
 	let seeAll = false
 
 	const x = range([0, 1], 100)
-	const targetSpline = new BSpline(20)
+	const targetSpline = new BSpline(3)
 	const target = {
 		evaluate: () => x.map(targetSpline.evaluate)
 	}
 
-	const POPULATION_SIZE = 50
+	const POPULATION_SIZE = 200
 	const INPUT_SIZE = 1
 	const OUTPUT_SIZE = 1
 

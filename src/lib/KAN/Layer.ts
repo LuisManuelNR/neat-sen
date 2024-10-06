@@ -1,3 +1,4 @@
+import { randomNumber } from '@chasi/ui/utils'
 import { BSpline } from './BSpline'
 export class Layer {
 	splines: BSpline[] = []
@@ -10,7 +11,8 @@ export class Layer {
 
 		// Crear splines para cada combinación de input y output
 		for (let i = 0; i < outputs * inputs; i++) {
-			this.splines.push(new BSpline(8))
+			const ps = Math.round(randomNumber(2, 10))
+			this.splines.push(new BSpline(ps))
 		}
 	}
 

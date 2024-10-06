@@ -62,7 +62,6 @@ export class BSpline {
 			if (n < 0) n = 0
 			return n
 		})
-		// this.#knots = this.#generateKnotVector()
 	}
 
 	clone() {
