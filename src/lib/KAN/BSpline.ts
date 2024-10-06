@@ -56,16 +56,13 @@ export class BSpline {
 	}
 
 	mutate() {
-		const step = 0.5
 		this.controlPoints = this.controlPoints.map((n) => {
-			if (probably(0.3)) {
-				n += randomGaussian(0, step)
-				if (n > 1) n -= 0.01
-				if (n < 0) n += 0.01
-			}
+			n += randomGaussian(0, 0.05)
+			if (n > 1) n = 1
+			if (n < 0) n = 0
 			return n
 		})
-		this.#knots = this.#generateKnotVector()
+		// this.#knots = this.#generateKnotVector()
 	}
 
 	clone() {

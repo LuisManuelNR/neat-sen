@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { CGraph, CPath, CAxisX, CAxisY } from '@chasi/ui/graph'
-	import { max, min } from '@chasi/ui/utils'
 
 	export let x: number[] = []
 	export let y: number[] = []
@@ -9,8 +8,7 @@
 	export let helpers = false
 
 	const margin = helpers ? 40 : 0
-	$: domainX = [min(x), max(x)] as [number, number]
-	$: domainY = [min(y), max(y)] as [number, number]
+	const domain = [0, 1] as [number, number]
 </script>
 
 <div class="spline" style:width="{width}px">
@@ -21,10 +19,10 @@
 		marginRight={margin}
 		marginTop={margin}
 	>
-		<CPath {domainX} {domainY} {x} {y} color="var(--brand)"></CPath>
+		<CPath domainX={domain} domainY={domain} {x} {y} color="var(--brand)"></CPath>
 		{#if helpers}
-			<CAxisX domain={domainX} ticksNumber={5}></CAxisX>
-			<CAxisY domain={domainY} ticksNumber={5}></CAxisY>
+			<CAxisX {domain} ticksNumber={5}></CAxisX>
+			<CAxisY {domain} ticksNumber={5}></CAxisY>
 		{/if}
 	</CGraph>
 </div>

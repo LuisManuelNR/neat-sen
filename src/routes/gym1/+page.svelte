@@ -42,8 +42,7 @@
 			this.outputs = this.brain.forward(this.inputs)
 
 			const real = targetSpline.evaluate(value)
-			const realNorm = normalize(real, 0, 8)
-			const error = Math.pow(this.outputs[0] - realNorm, 2)
+			const error = Math.pow(this.outputs[0] - real, 2)
 
 			this.fitness += 1 / (1 + error)
 		}
@@ -62,7 +61,7 @@
 
 	let frames = 0
 	let generations = 0
-	$: best = simulation.population[0]
+	let best = simulation.population[0]
 	function update() {
 		frames++
 		if (simulate || generations >= 2000) {
@@ -72,8 +71,10 @@
 			}
 			simulation.population.forEach((s, i) => {
 				s.train()
+				// simulation.population[i] = simulation.population[i]
 			})
 		}
+		best = simulation.population[0]
 	}
 
 	function stopSimulation() {

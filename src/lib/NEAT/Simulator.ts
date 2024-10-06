@@ -31,16 +31,15 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 
 	evolve() {
 		this.#generation++
-		this.#normalizeFitness()
 		this.#selection() // Seleccionar los mejores individuos y mutar
 	}
 
-	#normalizeFitness() {
+	#normalizeFitness(group: T[]) {
 		let sum = 0
-		this.population.forEach((indi) => {
-			sum += indi.fitness
+		group.forEach((indi) => {
+			sum += indi.fitness * 2 // prevent too small
 		})
-		this.population.forEach((indi) => {
+		group.forEach((indi) => {
 			indi.fitness /= sum
 		})
 	}
@@ -49,16 +48,20 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 		// Ordena la población por fitness de mayor a menor
 		this.population.sort((a, b) => b.fitness - a.fitness)
 
+		// nos quedamos con la mitad
+		const half = this.population.slice(0, Math.round(this.#populationSize / 2))
+
 		// Calcula el número de elitistas
-		const elitistas = Math.floor(0.1 * this.#populationSize)
+		const elitistas = Math.floor(0.1 * half.length)
 
 		// Selecciona los elitistas
-		const elitists = this.population
+		const elitists = half
 			.slice(0, elitistas)
 			.map((a) => this.#createIndividual(a.brain.clone()))
 
 		// El resto de la población, excluyendo elitistas
-		const rest = this.population.slice(elitistas)
+		const rest = half.slice(elitistas)
+		this.#normalizeFitness(rest)
 
 		const selected = []
 		// Selección por torneo hasta llenar la selección

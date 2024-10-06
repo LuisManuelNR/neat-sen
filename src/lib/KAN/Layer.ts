@@ -1,8 +1,4 @@
-import { max } from '@chasi/ui/utils'
 import { BSpline } from './BSpline'
-import { relu, silu } from './funcs'
-import { clamp, probably } from '$lib/utils'
-let layers = 0
 export class Layer {
 	splines: BSpline[] = []
 	inputs: number
@@ -11,7 +7,6 @@ export class Layer {
 	constructor(inputs: number, outputs: number) {
 		this.inputs = inputs
 		this.outputs = outputs
-		layers++
 
 		// Crear splines para cada combinación de input y output
 		for (let i = 0; i < outputs * inputs; i++) {
@@ -33,14 +28,12 @@ export class Layer {
 				results[o] += this.splines[splineIndex].evaluate(inputs[i])
 			}
 		}
-		return results.map((n) => clamp(n / this.inputs, 0, 1))
+		return results.map((n) => n / this.inputs)
 	}
 
 	mutate() {
 		this.splines.forEach((spline) => {
-			if (probably(0.3)) {
-				spline.mutate()
-			}
+			spline.mutate()
 		})
 	}
 

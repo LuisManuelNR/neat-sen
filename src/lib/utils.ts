@@ -139,28 +139,28 @@ export class Vec2D {
 		this.y = Math.max(minY, Math.min(this.y, maxY)) // Restringir y dentro del rango [minY, maxY]
 	}
 
-	// Método para calcular el producto escalar con otro vector
-	dot(v: Vec2D): number {
-		return this.x * v.x + this.y * v.y // Producto escalar en 2D
-	}
-
-	// Método para determinar si este vector está apuntando hacia otro (0 a 1)
-	isPointingTo(other: Vec2D): number {
-		const dotProduct = this.dot(other)
-		const magnitudes = this.magnitude() * other.magnitude()
-
-		// Evitar divisiones por cero
-		if (magnitudes === 0) return 0
-
-		// Calculamos el coseno del ángulo entre los dos vectores
-		const cosTheta = dotProduct / magnitudes
-
-		// Mapear el valor de cosTheta de -1 a 1 en el rango de 0 a 1
-		return (cosTheta + 1) / 2
-	}
-
 	// Método auxiliar para calcular la magnitud del vector
 	magnitude(): number {
 		return Math.sqrt(this.x * this.x + this.y * this.y) // Magnitud (longitud) del vector
+	}
+
+	angleTo(v: Vec2D): number {
+		const dotProduct = this.x * v.x + this.y * v.y // Producto punto
+		const magnitudeA = this.magnitude() // Magnitud del vector actual
+		const magnitudeB = v.magnitude() // Magnitud del vector v
+
+		// Evitar división por cero
+		if (magnitudeA === 0 || magnitudeB === 0) {
+			throw new Error("Uno de los vectores tiene magnitud cero.")
+		}
+
+		// Calcular el coseno del ángulo
+		const cosTheta = dotProduct / (magnitudeA * magnitudeB)
+
+		// Asegurarse de que el valor esté dentro del dominio de acos (-1, 1)
+		const clampedCosTheta = Math.max(-1, Math.min(1, cosTheta))
+
+		// Retornar el ángulo en grados
+		return Math.acos(clampedCosTheta) * (180 / Math.PI) // Convertir a grados
 	}
 }
