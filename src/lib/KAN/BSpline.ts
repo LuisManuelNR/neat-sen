@@ -15,9 +15,6 @@ export class BSpline {
 	}
 
 	evaluate(t: number): number {
-		// if (t > 1 || t < 0) {
-		// 	throw new Error(`Expected t in range [0, 1], received: ${t}`)
-		// }
 		return this.#deBoor(this.#degree, t)
 	}
 

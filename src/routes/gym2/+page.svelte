@@ -26,15 +26,17 @@
 
 	const POPULATION_SIZE = 50
 	const MAX_SPEED = 6
-
+	const target = new GameObject()
+	target.x = w - 100
+	target.y = 100
 	class Spider extends GameObject {
 		brain: Brain
 		fitness = 0
 		speed = 0
-		prevDistance: number
+		prevDistance = 0
+		prevAngle = 0
 		inputs: number[]
 		outputs: number[]
-		target = new GameObject()
 		score = 0
 
 		constructor(b: Brain) {
@@ -42,14 +44,12 @@
 			this.brain = b
 			this.x = 100
 			this.y = 100
-			this.target.x = w - 100
-			this.target.y = h - 100
-			this.prevDistance = this.distanceTo(this.target)
 			this.inputs = []
 			this.outputs = []
 		}
 
 		seek() {
+			this.prevAngle = this.angle
 			// this.inputs = [this.x, this.y, target.x, target.y, this.speed, this.angle]
 			// const minI = min(this.inputs)
 			// const maxI = max(this.inputs)
@@ -57,19 +57,21 @@
 			this.inputs = [
 				// this.x / w,
 				// this.y / h,
-				// this.target.x / w,
-				// this.target.y / h,
-				// this.speed / MAX_SPEED,
+				target.x / w,
+				target.y / h,
+				this.speed / MAX_SPEED,
 				// this.angle / (Math.PI * 2),
-				this.distanceTo(this.target) / w,
-				this.angleTo(this.target) / (Math.PI * 2)
+				this.distanceTo(target) / w
+				// this.angleTo(target) / (Math.PI * 2)
 			]
-			// this.inputs = this.inputs.map((n) => clamp(n, 0, 1))
+			this.inputs = this.inputs.map((n) => clamp(n, 0, 1))
 			this.outputs = this.brain.forward(this.inputs)
-			// this.speed = clamp(this.outputs[0], 0, MAX_SPEED)
-			// this.angle = clamp(this.outputs[1], 0, Math.PI * 2)
-			this.speed = this.outputs[0]
-			this.angle = this.outputs[1]
+
+			this.speed = linearScale(this.outputs[0], 0, 1, 0, MAX_SPEED)
+			this.angle = linearScale(this.outputs[1], 0, 1, -Math.PI, Math.PI)
+
+			this.speed = clamp(this.speed, 0, MAX_SPEED)
+			this.angle = clamp(this.angle, -Math.PI, Math.PI)
 
 			this.forward(this.speed)
 
@@ -83,27 +85,27 @@
 		}
 
 		updateFitness() {
-			const distance = this.distanceTo(this.target)
-			if (distance < 10) {
-				this.updateTarget()
-				this.score++
-			}
+			const distance = this.distanceTo(target)
 			if (distance < this.prevDistance) {
 				this.fitness += 1 / (1 + distance)
 			} else if (distance > this.prevDistance) {
 				this.fitness -= 1 / (1 + distance)
 			}
+			if (this.x >= w) this.fitness -= 0.5
+			if (this.x <= 0) this.fitness -= 0.5
+			if (this.y >= h) this.fitness -= 0.5
+			if (this.y <= 0) this.fitness -= 0.5
 			this.prevDistance = distance
-		}
-
-		updateTarget() {
-			this.target.x = randomNumber(50, w - 100)
-			this.target.y = randomNumber(50, h - 100)
 		}
 	}
 
+	function updateTarget() {
+		target.x = w - 100
+		target.y += Math.sin(frames * 0.02) * 4.5
+	}
+
 	const simulation = new Simulation({
-		inputs: 2,
+		inputs: 4,
 		outputs: 2,
 		populationSize: POPULATION_SIZE,
 		createIndividual: (b) => new Spider(b)
@@ -111,7 +113,7 @@
 
 	let frames = 0
 	let generations = 0
-	let EVOLUTION_INTERVAL = 200
+	let EVOLUTION_INTERVAL = 400
 	function update() {
 		frames++
 		if (simulate) {
@@ -127,6 +129,7 @@
 			simulation.population[0].seek()
 			simulation.population[0] = simulation.population[0]
 		}
+		updateTarget()
 	}
 
 	function stopSimulation() {
@@ -161,10 +164,10 @@
 		{:else}
 			{@const spider = simulation.population[0]}
 			<SpiderComponent go={spider} color="oklab({spider.fitness} -0.04 -0.12 / 1)" />
-			<GameObjectComponent go={spider.target}>
-				<div class="target brand">{spider.score}</div>
-			</GameObjectComponent>
 		{/if}
+		<GameObjectComponent go={target}>
+			<div class="target brand"></div>
+		</GameObjectComponent>
 	</div>
 
 	<Network
