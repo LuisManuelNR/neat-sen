@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { Brain } from '$lib/KAN/Brain'
+	import { range } from '$lib/utils'
+	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Network from '$lib/Viz/Network.svelte'
+	import Spline from '$lib/Viz/Spline.svelte'
 	import { randomNumber, runOnFrames } from '@chasi/ui/utils'
 
-	let inputsSize = 3
-	let outputsSize = 2
-
-	let inputs = Array.from({ length: inputsSize }, () => Math.random())
-	let outputs = Array.from({ length: outputsSize }, () => 0)
+	let inputsSize = 1
+	let outputsSize = 1
 	let network = new Brain(inputsSize, outputsSize)
 
 	function handleAddLayer() {
@@ -15,6 +15,8 @@
 		network = network
 	}
 	function handleForward() {
+		const inputs = Array.from({ length: inputsSize }, () => Math.random())
+		console.log(inputs)
 		network.forward(inputs)
 		network = network
 	}
@@ -34,6 +36,9 @@
 			network = network
 		})
 	}
+
+	const x = range([0, 1], 100)
+	$: y = x.map((n) => network.forward([n])[0])
 </script>
 
 <div class="viz d-grid gap-4">
@@ -47,7 +52,8 @@
 			<button class="btn" on:click={handleMutate}> mutate </button>
 		{/if}
 	</div>
-	<Network {inputs} {outputs} {network}></Network>
+	<Network {network}></Network>
+	<LineChart {x} {y}></LineChart>
 </div>
 
 <style>

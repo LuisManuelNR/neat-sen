@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { Simulation } from '$lib/NEAT/Simulator'
-	import { clamp, createBoundPoints, denormalize, isInsidePoly, normalize, Vec2D } from '$lib/utils'
+	import {
+		clamp,
+		createBoundPoints,
+		denormalize,
+		isInsidePoly,
+		normalize,
+		randomGaussian,
+		Vec2D
+	} from '$lib/utils'
 	import { runOnFrames, linearScale, randomNumber, max, min } from '@chasi/ui/utils'
 	import { CLabel } from '@chasi/ui'
 	import { onMount } from 'svelte'
@@ -16,7 +24,7 @@
 	let simulate = true
 	let seeAll = false
 
-	const POPULATION_SIZE = 200
+	const POPULATION_SIZE = 50
 	const MAX_SPEED = 6
 	const target = new GameObject()
 	target.x = 50
@@ -27,6 +35,8 @@
 		fitness = 0
 		speed = 0
 		prevDistance: number
+		inputs: number[]
+		outputs: number[]
 
 		constructor(b: Brain) {
 			super()
@@ -34,17 +44,32 @@
 			this.x = w - 100
 			this.y = h - 100
 			this.prevDistance = this.distanceTo(target)
+			this.inputs = []
+			this.outputs = []
 		}
 
 		seek() {
-			const inputs = [this.x, this.y, target.x, target.y, this.angleTo(target)]
-			const minI = min(inputs)
-			const maxI = max(inputs)
-			const normalized = inputs.map((n) => linearScale(n, minI, maxI, 0, 1))
-			const out = this.brain.forward(normalized)
+			// this.inputs = [this.x, this.y, target.x, target.y, this.speed, this.angle]
+			// const minI = min(this.inputs)
+			// const maxI = max(this.inputs)
+			// const normalized = this.inputs.map((n) => linearScale(n, minI, maxI, 0, 1))
+			this.x = clamp(this.x, 0, w)
+			this.y = clamp(this.y, 0, h)
+			this.inputs = [
+				// this.x / w,
+				// this.y / h,
+				// target.x / w,
+				// target.y / h,
+				this.speed / MAX_SPEED,
+				this.angle / (Math.PI * 2),
+				this.distanceTo(target) / w,
+				this.angleTo(target) / (Math.PI * 2)
+			]
+			this.inputs = this.inputs.map((n) => clamp(n, 0, 1))
+			this.outputs = this.brain.forward(this.inputs)
 
-			this.speed = out[0] * MAX_SPEED
-			this.angle = Math.PI * 2 * out[1]
+			this.speed = this.outputs[0] * MAX_SPEED
+			this.angle = Math.PI * 2 * this.outputs[1]
 
 			this.forward(this.speed)
 
@@ -53,22 +78,25 @@
 
 		updateFitness() {
 			const distance = this.distanceTo(target)
+			if (distance < 5) {
+				updateTarget()
+			}
 			if (distance < this.prevDistance) {
 				this.fitness += 1 / (1 + distance)
 			} else if (distance > this.prevDistance) {
-				this.fitness += 1 / (1 + distance)
+				this.fitness -= 10 / (1 + distance)
 			}
 			this.prevDistance = distance
 		}
 	}
 
 	function updateTarget() {
-		target.x = randomNumber(50, w)
-		target.y = randomNumber(50, h)
+		target.x = randomNumber(50, w - 100)
+		target.y = randomNumber(50, h - 100)
 	}
 
 	const simulation = new Simulation({
-		inputs: 5,
+		inputs: 4,
 		outputs: 2,
 		populationSize: POPULATION_SIZE,
 		createIndividual: (b) => new Spider(b)
@@ -89,9 +117,6 @@
 				s.seek()
 				simulation.population[i] = simulation.population[i]
 			})
-			if (frames % (EVOLUTION_INTERVAL * 10) === 0) {
-				updateTarget()
-			}
 		}
 	}
 
@@ -100,7 +125,7 @@
 	}
 
 	onMount(() => {
-		return runOnFrames(120, update)
+		return runOnFrames(60, update)
 	})
 </script>
 
@@ -133,7 +158,11 @@
 		</GameObjectComponent>
 	</div>
 
-	<Network network={simulation.population[0].brain}></Network>
+	<Network
+		inputs={simulation.population[0].inputs}
+		outputs={simulation.population[0].outputs}
+		network={simulation.population[0].brain}
+	></Network>
 </div>
 
 <style>

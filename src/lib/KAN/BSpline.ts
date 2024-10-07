@@ -1,4 +1,4 @@
-import { probably, randomGaussian } from '$lib/utils'
+import { clamp, probably, randomGaussian } from '$lib/utils'
 
 export class BSpline {
 	controlPoints: number[]
@@ -6,7 +6,7 @@ export class BSpline {
 	#knots: number[]
 
 	constructor(points = 4) {
-		this.#degree = points - 1
+		this.#degree = points + 2
 		this.controlPoints = Array.from({ length: points }, () => Math.random())
 		this.#knots = this.#generateKnotVector()
 		this.evaluate = this.evaluate.bind(this)
@@ -14,26 +14,24 @@ export class BSpline {
 		this.clone = this.clone.bind(this)
 	}
 
-	// Método para evaluar la curva en un valor t (entre 0 y 1)
 	evaluate(t: number): number {
 		if (t > 1 || t < 0) {
-			throw new Error(`Expected t in range [0, 1], recived: ${t}`)
+			throw new Error(`Expected t in range [0, 1], received: ${t}`)
 		}
 		return this.#deBoor(this.#degree, t)
 	}
 
 	#deBoor(degree: number, x: number): number {
 		const n = this.controlPoints.length - 1
-		let d = [...this.controlPoints] // Copia de los puntos de control
+		let d = [...this.controlPoints]
 
-		// Algoritmo de De Boor
 		for (let r = 1; r <= degree; r++) {
 			for (let i = n; i >= r; i--) {
-				const alpha = (x - this.#knots[i]) / (this.#knots[i + degree + 1 - r] - this.#knots[i])
+				const denominator = this.#knots[i + degree + 1 - r] - this.#knots[i] || 1e-10
+				const alpha = (x - this.#knots[i]) / denominator
 				d[i] = (1 - alpha) * d[i - 1] + alpha * d[i]
 			}
 		}
-
 		return d[n]
 	}
 
@@ -42,10 +40,11 @@ export class BSpline {
 		const m = n + this.#degree + 1
 		const knots: number[] = []
 
+		// Los primeros y últimos degree + 1 nudos son iguales para curva abierta
 		for (let i = 0; i <= m; i++) {
-			if (i <= this.#degree) {
+			if (i < this.#degree) {
 				knots.push(0)
-			} else if (i >= m - this.#degree) {
+			} else if (i > m - this.#degree) {
 				knots.push(1)
 			} else {
 				knots.push((i - this.#degree) / (m - 2 * this.#degree))
@@ -58,15 +57,19 @@ export class BSpline {
 	mutate() {
 		this.controlPoints = this.controlPoints.map((n) => {
 			n += randomGaussian(0, 0.05)
-			if (n > 1) n = 1
-			if (n < 0) n = 0
-			return n
+			return clamp(n, 0, 1)
 		})
+
+		if (probably(0.1) && this.controlPoints.length < 7) {
+			this.controlPoints.push(Math.random())
+			this.#degree = this.controlPoints.length + 1
+			this.#knots = this.#generateKnotVector()
+		}
 	}
 
 	clone() {
 		const clone = new BSpline(this.controlPoints.length)
-		clone.controlPoints = this.controlPoints
+		clone.controlPoints = Array.from(this.controlPoints)
 		return clone
 	}
 }

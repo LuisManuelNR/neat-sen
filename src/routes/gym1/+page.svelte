@@ -9,18 +9,23 @@
 	import Network from '$lib/Viz/Network.svelte'
 	import { Brain } from '$lib/KAN/Brain'
 	import Spline from '$lib/Viz/Spline.svelte'
-	import { BSpline } from '$lib/KAN/BSpline'
+	import LineChart from '$lib/Viz/LineChart.svelte'
 
 	let simulate = false
 	let seeAll = false
 
 	const x = range([0, 1], 100)
-	const targetSpline = new BSpline(3)
+	const targetSpline = {
+		evaluate(n: number) {
+			// const sen = Math.sin(n)
+			return Math.exp(n) / 2.5
+		}
+	}
 	const target = {
 		evaluate: () => x.map(targetSpline.evaluate)
 	}
 
-	const POPULATION_SIZE = 200
+	const POPULATION_SIZE = 50
 	const INPUT_SIZE = 1
 	const OUTPUT_SIZE = 1
 
@@ -100,9 +105,9 @@
 </div>
 
 <div class="wrapper d-grid gap-2">
-	<Spline {x} y={best.evaluate()} width={400} height={400} helpers></Spline>
+	<LineChart {x} y={best.evaluate()} width={400} height={400}></LineChart>
 	<Network inputs={best.inputs} network={best.brain} outputs={best.outputs}></Network>
-	<Spline {x} y={target.evaluate()} width={400} height={400} helpers></Spline>
+	<LineChart {x} y={target.evaluate()} width={400} height={400}></LineChart>
 </div>
 
 <style>

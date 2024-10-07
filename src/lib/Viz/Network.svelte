@@ -1,18 +1,12 @@
 <script lang="ts">
 	import type { Brain } from '$lib/KAN/Brain'
 	import Spline from './Spline.svelte'
-	import { range } from '$lib/utils'
 
 	export let inputs: number[] = []
 	export let outputs: number[] = []
 	export let network: Brain
 
 	$: columns = network.layers.length + 2 // inputs and outpurs
-
-	const x = range([0, 1], 10)
-	function genY(ev: (n: number) => number) {
-		return x.map(ev)
-	}
 </script>
 
 <div
@@ -31,7 +25,7 @@
 	{#each network.layers as layer}
 		<div class="d-flex flex-column gap-2">
 			{#each layer.splines as spline}
-				<Spline {x} y={genY(spline.evaluate)}></Spline>
+				<Spline {spline}></Spline>
 			{/each}
 		</div>
 	{/each}
