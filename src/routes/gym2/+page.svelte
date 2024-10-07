@@ -34,7 +34,6 @@
 		fitness = 0
 		speed = 0
 		prevDistance = 0
-		prevAngle = 0
 		inputs: number[]
 		outputs: number[]
 		score = 0
@@ -49,34 +48,26 @@
 		}
 
 		seek() {
-			this.prevAngle = this.angle
-			// this.inputs = [this.x, this.y, target.x, target.y, this.speed, this.angle]
-			// const minI = min(this.inputs)
-			// const maxI = max(this.inputs)
-			// const normalized = this.inputs.map((n) => linearScale(n, minI, maxI, 0, 1))
 			this.inputs = [
 				// this.x / w,
 				// this.y / h,
-				target.x / w,
-				target.y / h,
+				// target.x / w,
+				// target.y / h,
 				this.speed / MAX_SPEED,
 				// this.angle / (Math.PI * 2),
-				this.distanceTo(target) / w
-				// this.angleTo(target) / (Math.PI * 2)
+				this.distanceTo(target) / w,
+				this.angleTo(target) / (Math.PI * 2)
 			]
-			this.inputs = this.inputs.map((n) => clamp(n, 0, 1))
+
 			this.outputs = this.brain.forward(this.inputs)
 
 			this.speed = linearScale(this.outputs[0], 0, 1, 0, MAX_SPEED)
 			this.angle = linearScale(this.outputs[1], 0, 1, -Math.PI, Math.PI)
 
-			this.speed = clamp(this.speed, 0, MAX_SPEED)
-			this.angle = clamp(this.angle, -Math.PI, Math.PI)
-
-			this.forward(this.speed)
-
 			this.x = clamp(this.x, 0, w)
 			this.y = clamp(this.y, 0, h)
+
+			this.forward(this.speed)
 		}
 
 		train() {
@@ -87,14 +78,12 @@
 		updateFitness() {
 			const distance = this.distanceTo(target)
 			if (distance < this.prevDistance) {
-				this.fitness += 1 / (1 + distance)
+				// this.fitness += 1 / (1 + distance)
+				this.fitness++
 			} else if (distance > this.prevDistance) {
-				this.fitness -= 1 / (1 + distance)
+				// this.fitness -= 1 / (1 + distance)
+				this.fitness--
 			}
-			if (this.x >= w) this.fitness -= 0.5
-			if (this.x <= 0) this.fitness -= 0.5
-			if (this.y >= h) this.fitness -= 0.5
-			if (this.y <= 0) this.fitness -= 0.5
 			this.prevDistance = distance
 		}
 	}
@@ -105,7 +94,7 @@
 	}
 
 	const simulation = new Simulation({
-		inputs: 4,
+		inputs: 3,
 		outputs: 2,
 		populationSize: POPULATION_SIZE,
 		createIndividual: (b) => new Spider(b)
@@ -113,7 +102,7 @@
 
 	let frames = 0
 	let generations = 0
-	let EVOLUTION_INTERVAL = 400
+	let EVOLUTION_INTERVAL = 200
 	function update() {
 		frames++
 		if (simulate) {

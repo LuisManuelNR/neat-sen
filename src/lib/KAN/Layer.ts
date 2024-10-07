@@ -1,6 +1,6 @@
-import { linearScale, max, min, randomNumber } from '@chasi/ui/utils'
+import { randomNumber } from '@chasi/ui/utils'
 import { BSpline } from './BSpline'
-import { clamp, silu } from '$lib/utils'
+import { sigmoid, silu } from '$lib/utils'
 export class Layer {
 	splines: BSpline[] = []
 	inputs: number
@@ -32,7 +32,7 @@ export class Layer {
 				results[o] += splineValue
 			}
 		}
-		return results.map(silu)
+		return results.map(sigmoid)
 	}
 
 	mutate() {
