@@ -66,6 +66,14 @@ export function sigmoid(x: number) {
 	return 1 / (1 + Math.exp(-x))
 }
 
+export function relu(x: number) {
+	return Math.max(0, x)
+}
+
+export function silu(x: number) {
+	return x * sigmoid(x)
+}
+
 export function runEveryFrames(fps = 30, callback: () => void) {
 	const interval = 1000 / fps // Tiempo en ms entre cada frame
 	let now
