@@ -1,4 +1,4 @@
-import { randomNumber } from '@chasi/ui/utils'
+import { linearScale, max, min, randomNumber } from '@chasi/ui/utils'
 import { BSpline } from './BSpline'
 import { sigmoid, silu } from '$lib/utils'
 export class Layer {
@@ -12,8 +12,7 @@ export class Layer {
 
 		// Crear splines para cada combinación de input y output
 		for (let i = 0; i < outputs * inputs; i++) {
-			const points = Math.floor(randomNumber(2, 10))
-			this.splines.push(new BSpline(points))
+			this.splines.push(new BSpline(9))
 		}
 	}
 
@@ -28,11 +27,12 @@ export class Layer {
 			// Para cada output, sumamos el resultado de cada spline correspondiente a los inputs
 			for (let i = 0; i < this.inputs; i++) {
 				const splineIndex = o * this.inputs + i // Índice correcto del spline
-				const splineValue = this.splines[splineIndex].evaluate(inputs[i])
-				results[o] += splineValue
+				results[o] += this.splines[splineIndex].evaluate(inputs[i])
 			}
 		}
-		return results.map(sigmoid)
+		const minO = min([0, ...results, 1])
+		const maxO = max([0, ...results, 1])
+		return results.map((n) => linearScale(n, minO, maxO, 0, 1))
 	}
 
 	mutate() {

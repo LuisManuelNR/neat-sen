@@ -11,7 +11,7 @@
 	style:width="{width}px"
 	style:height="{height}px"
 	style:translate="{go.x - width / 2}px {go.y - height / 2}px"
-	style:rotate="{go.angle}rad"
+	style:rotate="{go.angle + Math.PI / 2}rad"
 >
 	<slot></slot>
 </div>

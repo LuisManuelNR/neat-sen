@@ -14,10 +14,10 @@
 
 	function update() {
 		if (keysPressed['d']) {
-			spider.rotate(0.1)
+			spider.angle += 0.5
 		}
 		if (keysPressed['a']) {
-			spider.rotate(-0.1)
+			spider.angle -= 0.5
 		}
 		if (keysPressed['w']) {
 			spider.forward(6)
@@ -36,7 +36,7 @@
 	}
 
 	onMount(() => {
-		return runOnFrames(60, update)
+		return runOnFrames(30, update)
 	})
 </script>
 

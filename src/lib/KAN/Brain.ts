@@ -41,7 +41,9 @@ export class Brain {
 	mutate() {
 		if (probably(this.#mutationRate)) {
 			this.layers.forEach((l) => l.mutate())
-		} else if (this.layers.length < 3) {
+		}
+		const complexity = 1 / (1 + this.layers.length + 1)
+		if (probably(0.05 * complexity)) {
 			this.addLayer()
 		}
 	}

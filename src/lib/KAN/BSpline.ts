@@ -53,15 +53,15 @@ export class BSpline {
 
 	mutate() {
 		this.controlPoints = this.controlPoints.map((n) => {
-			n += randomGaussian(0, 0.05)
+			n += randomGaussian(0, 0.1)
 			return clamp(n, 0, 1)
 		})
 
-		if (probably(0.1) && this.controlPoints.length < 7) {
-			this.controlPoints.push(Math.random())
-			this.#degree = this.controlPoints.length + 1
-			this.#knots = this.#generateKnotVector()
-		}
+		// if (probably(0.05) && this.controlPoints.length < 7) {
+		// 	this.controlPoints.push(Math.random())
+		// 	this.#degree = this.controlPoints.length + 1
+		// 	this.#knots = this.#generateKnotVector()
+		// }
 	}
 
 	clone() {

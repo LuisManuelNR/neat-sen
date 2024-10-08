@@ -55,13 +55,11 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 		const elitistas = Math.floor(0.1 * half.length)
 
 		// Selecciona los elitistas
-		const elitists = half
-			.slice(0, elitistas)
-			.map((a) => this.#createIndividual(a.brain.clone()))
+		const elitists = half.slice(0, elitistas).map((a) => this.#createIndividual(a.brain.clone()))
 
 		// El resto de la población, excluyendo elitistas
 		const rest = half.slice(elitistas)
-		this.#normalizeFitness(rest)
+		// this.#normalizeFitness(rest)
 
 		const selected = []
 		// Selección por torneo hasta llenar la selección

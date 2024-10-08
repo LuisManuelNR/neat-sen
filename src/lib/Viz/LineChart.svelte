@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { range } from '$lib/utils'
 	import { CGraph, CPath, CAxisX, CAxisY } from '@chasi/ui/graph'
 	import { max, min } from '@chasi/ui/utils'
 
-	export let x: number[] = []
 	export let y: number[] = []
+	export let x: number[] = []
 	export let width = 50
 	export let height = 50
 
