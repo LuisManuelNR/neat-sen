@@ -49,23 +49,30 @@
 
 		seek() {
 			this.inputs = [
-				// this.x / w,
-				// this.y / h,
-				// target.x / w,
-				// target.y / h,
-				this.speed / MAX_SPEED,
-				// this.angle / (Math.PI * 2),
+				target.x,
+				target.y,
+				this.angle,
 				this.distanceTo(target) / w,
-				this.angleTo(target) / (Math.PI * 2)
+				this.angleTo(target)
 			]
+			// this.inputs = [
+			// 	// this.x / w,
+			// 	// this.y / h,
+			// 	target.x / w,
+			// 	target.y / h,
+			// 	// this.speed / MAX_SPEED,
+			// 	linearScale(this.angle, -Math.PI, Math.PI, 0, 1),
+			// 	this.distanceTo(target) / w,
+			// 	linearScale(this.angleTo(target), -Math.PI, Math.PI, 0, 1)
+			// ]
 
 			this.outputs = this.brain.forward(this.inputs)
 
 			this.speed = linearScale(this.outputs[0], 0, 1, 0, MAX_SPEED)
 			this.angle = linearScale(this.outputs[1], 0, 1, -Math.PI, Math.PI)
 
-			this.x = clamp(this.x, 0, w)
-			this.y = clamp(this.y, 0, h)
+			// this.x = clamp(this.x, 0, w)
+			// this.y = clamp(this.y, 0, h)
 
 			this.forward(this.speed)
 		}
@@ -78,23 +85,29 @@
 		updateFitness() {
 			const distance = this.distanceTo(target)
 			if (distance < this.prevDistance) {
-				// this.fitness += 1 / (1 + distance)
-				this.fitness++
+				this.fitness += 1 / (1 + distance)
+				if (distance < 25) {
+					updateTarget()
+				}
 			} else if (distance > this.prevDistance) {
-				// this.fitness -= 1 / (1 + distance)
-				this.fitness--
+				this.fitness -= 1 / (1 + distance)
 			}
 			this.prevDistance = distance
 		}
 	}
 
+	let touches = 0
 	function updateTarget() {
-		target.x = w - 100
-		target.y += Math.sin(frames * 0.02) * 4.5
+		touches++
+		if (touches > 200) {
+			touches = 0
+			target.x = randomNumber(50, w - 50)
+			target.y = randomNumber(50, h - 50)
+		}
 	}
 
 	const simulation = new Simulation({
-		inputs: 3,
+		inputs: 5,
 		outputs: 2,
 		populationSize: POPULATION_SIZE,
 		createIndividual: (b) => new Spider(b)
@@ -118,7 +131,6 @@
 			simulation.population[0].seek()
 			simulation.population[0] = simulation.population[0]
 		}
-		updateTarget()
 	}
 
 	function stopSimulation() {
