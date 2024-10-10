@@ -5,18 +5,20 @@
 
 	export let y: number[] = []
 	export let x: number[] = []
-	export let width = 50
 	export let height = 50
 
-	$: domainX = [min(x), max(x)] as [number, number]
+	$: _x = x.length ? x : range([0, y.length], y.length)
+	$: domainX = [min(_x), max(_x)] as [number, number]
 	$: domainY = [min(y), max(y)] as [number, number]
 </script>
 
-<div class="spline" style:width="{width}px">
+<div class="spline">
 	<CGraph {height}>
-		<CPath {domainX} {domainY} {x} {y} color="var(--accent)"></CPath>
-		<CAxisX domain={domainX} ticksNumber={5}></CAxisX>
-		<CAxisY domain={domainY} ticksNumber={5}></CAxisY>
+		{#if y.length > 1}
+			<CPath {domainX} {domainY} x={_x} {y} color="var(--accent)"></CPath>
+			<CAxisX domain={domainX} ticksNumber={4}></CAxisX>
+			<CAxisY domain={domainY} ticksNumber={4}></CAxisY>
+		{/if}
 	</CGraph>
 </div>
 

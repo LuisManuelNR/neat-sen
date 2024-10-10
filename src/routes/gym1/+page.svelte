@@ -1,117 +1,56 @@
 <script lang="ts">
-	import { Simulation } from '$lib/NEAT/Simulator'
-	import { normalize, range } from '$lib/utils'
-	import { runOnFrames } from '@chasi/ui/utils'
-	import { linearScale } from '@chasi/ui/utils'
-	import { CLabel } from '@chasi/ui'
-	import { max, min } from '@chasi/ui/utils'
-	import { onMount } from 'svelte'
-	import Network from '$lib/Viz/Network.svelte'
-	import { Brain } from '$lib/KAN/Brain'
-	import Spline from '$lib/Viz/Spline.svelte'
+	import { Genome } from '$lib/NEAT/Simulator'
 	import LineChart from '$lib/Viz/LineChart.svelte'
+	import Simulator from '$lib/Viz/Simulator.svelte'
+	import { CNotifier } from '@chasi/ui'
+	import { randomNumber } from '@chasi/ui/utils'
 
-	let simulate = false
-	let seeAll = false
+	const dataset = Array.from({ length: 10 }, () => [randomNumber(0, 1), randomNumber(0, 1)])
+	const realY = dataset.map((n) => realFunction(n))
 
-	const x = range([0, 1], 100)
-	const targetSpline = {
-		evaluate(n: number) {
-			// const sen = Math.sin(n)
-			return Math.exp(n) / 2.5
-		}
+	function realFunction(xs: number[]) {
+		// return xs[0] * xs[1]
+		return Math.atan2(xs[0], xs[1])
 	}
-	const target = {
-		evaluate: () => x.map(targetSpline.evaluate)
-	}
-
-	const POPULATION_SIZE = 50
-	const INPUT_SIZE = 1
-	const OUTPUT_SIZE = 1
-
-	class Agent {
-		fitness = 0
-		brain: Brain
-		inputs: number[]
-		outputs: number[]
-
-		constructor(b: Brain) {
-			this.brain = b
-			this.outputs = [0]
-			this.inputs = [Math.random()]
+	class Agent extends Genome {
+		constructor() {
+			super(2, 1)
 		}
 
 		train() {
-			const value = Math.random()
-			this.inputs = [value]
+			this.inputs = [Math.random(), Math.random()]
 			this.outputs = this.brain.forward(this.inputs)
 
-			const real = targetSpline.evaluate(value)
-			const error = Math.pow(this.outputs[0] - real, 2)
-
+			const real = realFunction(this.inputs)
+			const error = Math.abs(this.outputs[0] - real)
 			this.fitness += 1 / (1 + error)
 		}
 
 		evaluate() {
-			return x.map((n) => this.brain.forward([n])[0])
+			return dataset.map((n) => this.brain.forward(n)[0])
 		}
 	}
 
-	const simulation = new Simulation({
-		inputs: INPUT_SIZE,
-		outputs: OUTPUT_SIZE,
-		populationSize: POPULATION_SIZE,
-		createIndividual: (b) => new Agent(b)
-	})
-
-	let frames = 0
-	let generations = 0
-	let best = simulation.population[0]
-	function update() {
-		frames++
-		if (simulate || generations >= 2000) {
-			if (frames % 100 === 0) {
-				simulation.evolve()
-				generations = simulation.getGeneration()
-			}
-			simulation.population.forEach((s, i) => {
-				s.train()
-				// simulation.population[i] = simulation.population[i]
-			})
-		}
-		best = simulation.population[0]
+	function create() {
+		return new Agent()
 	}
-
-	function stopSimulation() {
-		simulate = false
-	}
-
-	onMount(() => {
-		return runOnFrames(120, update)
-	})
 </script>
 
-<div>
-	{#if simulate}
-		<button class="btn error" on:click={stopSimulation}> pause </button>
-		<CLabel label="See all">
-			<input type="checkbox" bind:checked={seeAll} />
-		</CLabel>
-	{:else}
-		<button class="btn success" on:click={() => (simulate = true)}> evolve </button>
-	{/if}
-	<p>generations: {generations}</p>
-	<p>best fitness: {best.fitness}</p>
-</div>
-
-<div class="wrapper d-grid gap-2">
-	<LineChart {x} y={best.evaluate()} width={400} height={400}></LineChart>
-	<Network inputs={best.inputs} network={best.brain} outputs={best.outputs}></Network>
-	<LineChart {x} y={target.evaluate()} width={400} height={400}></LineChart>
-</div>
+<Simulator let:best population={50} {create} defaulEvolutionInterval={100}>
+	<div class="d-grid gap-4">
+		<div>
+			<p>output</p>
+			<LineChart y={best.evaluate()} height={400}></LineChart>
+		</div>
+		<div>
+			<p>target</p>
+			<LineChart y={realY} height={400}></LineChart>
+		</div>
+	</div>
+</Simulator>
 
 <style>
-	.wrapper {
-		--md-columns: auto 1fr;
+	.d-grid {
+		--xs-columns: 1fr 1fr;
 	}
 </style>

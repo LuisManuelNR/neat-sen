@@ -6,7 +6,7 @@ export class BSpline {
 	#knots: number[]
 
 	constructor(points = 4) {
-		this.#degree = points + 2
+		this.#degree = 3
 		this.controlPoints = Array.from({ length: points }, () => Math.random())
 		this.#knots = this.#generateKnotVector()
 		this.evaluate = this.evaluate.bind(this)
@@ -15,21 +15,41 @@ export class BSpline {
 	}
 
 	evaluate(t: number): number {
-		return this.#deBoor(this.#degree, t)
+		const n = this.controlPoints.length - 1
+		let result = 0
+
+		// Sumatoria de la combinación ponderada de los puntos de control
+		for (let i = 0; i <= n; i++) {
+			const basis = this.basisFN(i, this.#degree, t, this.#knots)
+			result += this.controlPoints[i] * basis
+		}
+
+		return result
 	}
 
-	#deBoor(degree: number, x: number): number {
-		const n = this.controlPoints.length - 1
-		let d = [...this.controlPoints]
+	basisFN(i: number, r: number, t: number, u: number[]): number {
+		const u_i = u[i]
+		const u_i1 = u[i + 1]
+		const u_ir = u[i + r]
+		const u_i1r = u[i + r + 1]
 
-		for (let r = 1; r <= degree; r++) {
-			for (let i = n; i >= r; i--) {
-				const denominator = this.#knots[i + degree + 1 - r] - this.#knots[i] || 1e-10
-				const alpha = (x - this.#knots[i]) / denominator
-				d[i] = (1 - alpha) * d[i - 1] + alpha * d[i]
+		if (r === 0) {
+			if (u_i <= t && t <= u_i1) {
+				return 1
+			} else {
+				return 0
 			}
+		} else {
+			let left = 0
+			if (u_ir - u_i !== 0) {
+				left = ((t - u_i) / (u_ir - u_i)) * this.basisFN(i, r - 1, t, u)
+			}
+			let right = 0
+			if (u_i1r - u_i1 !== 0) {
+				right = ((u_i1r - t) / (u_i1r - u_i1)) * this.basisFN(i + 1, r - 1, t, u)
+			}
+			return left + right
 		}
-		return d[n]
 	}
 
 	#generateKnotVector(): number[] {
@@ -53,15 +73,9 @@ export class BSpline {
 
 	mutate() {
 		this.controlPoints = this.controlPoints.map((n) => {
-			n += randomGaussian(0, 0.1)
+			n += randomGaussian(0, 0.05)
 			return clamp(n, 0, 1)
 		})
-
-		// if (probably(0.05) && this.controlPoints.length < 7) {
-		// 	this.controlPoints.push(Math.random())
-		// 	this.#degree = this.controlPoints.length + 1
-		// 	this.#knots = this.#generateKnotVector()
-		// }
 	}
 
 	clone() {

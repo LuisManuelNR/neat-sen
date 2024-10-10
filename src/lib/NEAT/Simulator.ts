@@ -1,31 +1,41 @@
-import { Brain } from '$lib/KAN/Brain'
+// import { Brain } from '$lib/KAN/Brain'
+import { Brain } from '$lib/MLP/Brain'
 
-type NEATOptions<T extends { brain: Brain }> = {
-	inputs: number
-	outputs: number
-	populationSize: number
-	createIndividual: (brain: Brain) => T
+export class Genome {
+	brain: Brain
+	fitness = 0
+	inputs: number[]
+	outputs: number[]
+	constructor(inputs: number, outputs: number) {
+		this.brain = new Brain(inputs, outputs)
+		this.inputs = new Array(inputs).fill(0)
+		this.outputs = new Array(outputs).fill(0)
+	}
+
+	train() {}
+
+	predict() {}
 }
 
-export class Simulation<T extends { brain: Brain; fitness: number }> {
+export type CreateFunction<T> = () => T
+
+export type FitnessSort = 'max' | 'min'
+export class Simulation<T extends Genome> {
 	population: T[]
 	#populationSize: number
 	#generation: number = 0
-	#createIndividual: (brain: Brain) => T
-	#inputs: number
-	#outputs: number
+	#create: CreateFunction<T>
+	#fitnessSort: FitnessSort
 
-	constructor(opt: NEATOptions<T>) {
-		this.#populationSize = opt.populationSize
-		this.#createIndividual = opt.createIndividual
-		this.#inputs = opt.inputs
-		this.#outputs = opt.outputs
+	constructor(populationSize: number, create: CreateFunction<T>, fitnessSort?: FitnessSort) {
+		this.#populationSize = populationSize
 		this.population = []
+		this.#create = create
+		this.#fitnessSort = fitnessSort || 'max'
 
 		// Inicialización de la población
 		for (let i = 0; i < this.#populationSize; i++) {
-			const brain = new Brain(this.#inputs, this.#outputs)
-			this.population.push(this.#createIndividual(brain))
+			this.population.push(this.#create())
 		}
 	}
 
@@ -37,7 +47,7 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 	#normalizeFitness(group: T[]) {
 		let sum = 0
 		group.forEach((indi) => {
-			sum += indi.fitness * 2 // prevent too small
+			sum += indi.fitness
 		})
 		group.forEach((indi) => {
 			indi.fitness /= sum
@@ -45,8 +55,11 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 	}
 
 	#selection() {
-		// Ordena la población por fitness de mayor a menor
-		this.population.sort((a, b) => b.fitness - a.fitness)
+		if (this.#fitnessSort === 'max') {
+			this.population.sort((a, b) => b.fitness - a.fitness)
+		} else {
+			this.population.sort((a, b) => a.fitness - b.fitness)
+		}
 
 		// nos quedamos con la mitad
 		const half = this.population.slice(0, Math.round(this.#populationSize / 2))
@@ -55,11 +68,15 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 		const elitistas = Math.floor(0.1 * half.length)
 
 		// Selecciona los elitistas
-		const elitists = half.slice(0, elitistas).map((a) => this.#createIndividual(a.brain.clone()))
+		const elitists = half.slice(0, elitistas).map((a) => {
+			const elitist = this.#create()
+			elitist.brain = a.brain.clone()
+			return elitist
+		})
 
 		// El resto de la población, excluyendo elitistas
 		const rest = half.slice(elitistas)
-		// this.#normalizeFitness(rest)
+		this.#normalizeFitness(rest)
 
 		const selected = []
 		// Selección por torneo hasta llenar la selección
@@ -90,7 +107,8 @@ export class Simulation<T extends { brain: Brain; fitness: number }> {
 		index = Math.max(0, index - 1)
 
 		// Create a new individual from the winner and apply mutation
-		const winner = this.#createIndividual(poulacho[index].brain.clone())
+		const winner = this.#create()
+		winner.brain = poulacho[index].brain.clone()
 		winner.brain.mutate()
 		return winner
 	}

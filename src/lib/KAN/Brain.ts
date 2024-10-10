@@ -1,4 +1,3 @@
-import { randomNumber } from '@chasi/ui/utils'
 import { Layer } from './Layer'
 import { probably } from '$lib/utils'
 
@@ -18,7 +17,7 @@ export class Brain {
 		this.#outputSize = outputSize
 
 		this.#mutationRate = opt?.mutationRate || 0.8
-		this.#mutationLayerRate = opt?.mutationLayerRate || 0.1
+		this.#mutationLayerRate = opt?.mutationLayerRate || 0.05
 
 		this.layers = [new Layer(inputSize, outputSize)]
 	}
@@ -33,17 +32,16 @@ export class Brain {
 	}
 
 	addLayer() {
-		const inputs = Math.round(randomNumber(1, 5))
-		const outputs = this.layers.at(-1)!.outputs
-		this.layers = [...this.layers, new Layer(outputs, inputs), new Layer(inputs, this.#outputSize)]
+		const inputs = this.layers[0].inputs
+		this.layers = [new Layer(this.#inputSize, inputs), ...this.layers]
 	}
 
 	mutate() {
 		if (probably(this.#mutationRate)) {
 			this.layers.forEach((l) => l.mutate())
 		}
-		const complexity = 1 / (1 + this.layers.length + 1)
-		if (probably(0.05 * complexity)) {
+		const complexity = 1 / (1 + this.layers.length)
+		if (probably(this.#mutationLayerRate * complexity)) {
 			this.addLayer()
 		}
 	}

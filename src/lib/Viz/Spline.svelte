@@ -11,10 +11,9 @@
 	export let width = 50
 	export let height = 50
 	export let helpers = false
-	export let testPoints = 10
 
 	const margin = helpers ? 40 : 0
-	$: x = range([0, 1], testPoints)
+	$: x = range(domain, 30)
 	$: y = x.map(spline.evaluate)
 </script>
 
@@ -28,9 +27,10 @@
 	>
 		<CPath domainX={domain} domainY={domain} {x} {y} color="var(--brand)"></CPath>
 		{#if helpers}
+			{@const points = range(domain, spline.controlPoints.length)}
 			{#each spline.controlPoints as point, i}
 				<CCircle
-					x={i / (spline.controlPoints.length - 1)}
+					x={points[i]}
 					y={point}
 					domainX={domain}
 					domainY={domain}
