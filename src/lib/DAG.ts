@@ -1,34 +1,77 @@
 export class DAG {
-	nodes: Set<DAGUnit> = new Set()
-	#deps: Map<string, Set<string>> = new Map()
-	sorted: Set<string>[] = []
+	#nodes: Map<number, DAGUnit> = new Map()
+	#deps: Map<number, Set<number>> = new Map()
+	#sorted: Set<number>[] = []
+	#id = -1
 
-	add(units: DAGUnit[]) {
-		units.forEach((unit) => {
-			if (this.#deps.has(unit.id)) return
-			this.nodes.add(unit)
-			this.#deps.set(unit.id, new Set())
-		})
-		this.#sort()
+	add(unit: DAGUnit) {
+		this.#id++
+		this.#nodes.set(this.#id, unit)
+		this.#deps.set(this.#id, new Set())
+		this.#sorted = []
 	}
 
-	connect(from: DAGUnit, to: DAGUnit) {
-		this.#deps.get(from.id)!.add(to.id)
-		this.#sort()
+	connect(from: number, to: number) {
+		const fromUnit = this.#nodes.get(from)
+		if (!fromUnit) throw new Error(`Unit ${fromUnit} must be added before connect`)
+		const toUnit = this.#nodes.get(to)
+		if (!toUnit) throw new Error(`Unit ${toUnit} must be added before connect`)
+
+		if (fromUnit.conf.outputTest !== toUnit.conf.inputTest) {
+			throw new Error(
+				`Connection from Unit${from}:${fromUnit.conf.outputTest} => Unit${to}:${toUnit.conf.inputTest} is invalid`
+			)
+		}
+
+		this.#deps.get(from)!.add(to)
+		toUnit.inputs.add(fromUnit.process)
+		this.#sorted = []
 	}
 
 	process() {
-		console.log(this.sorted)
+		this.#sort()
+		let result: any[] = []
+		this.#sorted.at(-1)?.forEach((id) => {
+			const unit = this.#nodes.get(id)!
+			result.push(unit.process())
+		})
+		return result
 	}
 
 	#sort() {
-		this.sorted = toposort(this.#deps)
+		if (this.#sorted.length) return
+		//@ts-ignore
+		this.#sorted = toposort(this.#deps)
+	}
+
+	garph() {
+		this.#sort()
+		return this.#sorted
 	}
 }
 
-export class DAGUnit {
-	id = crypto.randomUUID()
-	data: any
+type DAGUnitFunction<I, O> = (input: I[]) => O
+type DAGUnitConfig<I, O> = {
+	inputTest: I
+	outputTest: O
+	evaluate: DAGUnitFunction<I, O>
+}
+export class DAGUnit<I = any, O = any> {
+	conf: DAGUnitConfig<I, O>
+	inputs: Set<DAGUnit['process']> = new Set()
+
+	constructor(config: DAGUnitConfig<I, O>) {
+		this.conf = config
+		this.process = this.process.bind(this)
+	}
+
+	process() {
+		const outputs: any[] = []
+		for (const otherProcess of this.inputs) {
+			outputs.push(otherProcess())
+		}
+		return this.conf.evaluate(outputs)
+	}
 }
 
 export type DirectedAcyclicGraph = Map<string, Iterable<string>>

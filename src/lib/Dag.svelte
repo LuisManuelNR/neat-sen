@@ -12,7 +12,7 @@
 <div class="s-6">
 	<CGraph {height}>
 		<!-- <CPath domainX={domain} domainY={domain} {x} {y} color="var(--brand)"></CPath> -->
-		{#each dag.sorted as layer, l}
+		{#each dag.garph() as layer, l}
 			{@const ys = range([0, height], layer.size)}
 			{#each ys as y}
 				<CCircle x={l * R} {y} r={R} domainY={[0, height]} strokeWidth="0" color="var(--accent)" />

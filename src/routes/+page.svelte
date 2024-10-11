@@ -1,34 +1,60 @@
 <script lang="ts">
 	import { DAG, DAGUnit } from '$lib/DAG'
 	import Dag from '$lib/Dag.svelte'
-	import { randomNumber } from '@chasi/ui/utils'
 	import { onMount } from 'svelte'
 
 	const dag = new DAG()
 
-	const inputs = Array.from({ length: 4 }, () => new DAGUnit())
-	const hidden = Array.from({ length: 6 }, () => new DAGUnit())
-	const outputs = Array.from({ length: 3 }, () => new DAGUnit())
+	function createInput() {
+		return new DAGUnit({
+			inputTest: 0,
+			outputTest: 0,
+			evaluate() {
+				return Math.random()
+			}
+		})
+	}
 
-	dag.add([...inputs, ...hidden, ...outputs])
+	function createNeuron() {
+		return new DAGUnit({
+			inputTest: 0,
+			outputTest: 0,
+			evaluate(input) {
+				return input.reduce((p, c) => p * c, 1)
+			}
+		})
+	}
 
-	inputs.forEach((unit) => {
-		const other = hidden[randomIndex(hidden.length)]
-		dag.connect(unit, other)
-	})
+	const inputs = Array.from({ length: 4 }, createInput)
+	const hidden = Array.from({ length: 6 }, createNeuron)
+	const outputs = Array.from({ length: 3 }, createNeuron)
 
-	hidden.forEach((unit) => {
-		const other = outputs[randomIndex(outputs.length)]
-		dag.connect(unit, other)
-	})
+	const net = [...inputs, ...hidden, ...outputs]
+	net.forEach((n) => dag.add(n))
+
+	dag.connect(0, 4)
+	dag.connect(1, 5)
+	dag.connect(2, 6)
+	dag.connect(3, 7)
+
+	dag.connect(7, 10)
+	dag.connect(7, 11)
+
+	dag.connect(8, 12)
+	// dag.connect(8, 13)
+
+	dag.connect(9, 12)
+	// dag.connect(9, 13)
+
+	// hidden.forEach((unit) => {
+	// 	const other = outputs[randomIndex(outputs.length)]
+	// 	dag.connect(unit, other)
+	// })
 
 	onMount(() => {
-		dag.process()
+		const output = dag.process()
+		console.log('Salida final', output)
 	})
-
-	function randomIndex(length: number) {
-		return Math.round(randomNumber(0, length - 1))
-	}
 </script>
 
 <Dag {dag}></Dag>
