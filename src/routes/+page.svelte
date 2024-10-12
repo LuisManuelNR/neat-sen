@@ -10,7 +10,7 @@
 			inputTest: 0,
 			outputTest: 0,
 			evaluate() {
-				return Math.random()
+				return 2
 			}
 		})
 	}
@@ -20,39 +20,43 @@
 			inputTest: 0,
 			outputTest: 0,
 			evaluate(input) {
-				return input.reduce((p, c) => p * c, 1)
+				console.log('calling', input)
+				return input.reduce((p, c) => p + c, 0)
 			}
 		})
 	}
 
-	const inputs = Array.from({ length: 4 }, createInput)
-	const hidden = Array.from({ length: 6 }, createNeuron)
-	const outputs = Array.from({ length: 3 }, createNeuron)
+	// const inputs = Array.from({ length: 4 }, createInput)
+	// const hidden = Array.from({ length: 6 }, createNeuron)
+	// const outputs = Array.from({ length: 3 }, createNeuron)
 
-	const net = [...inputs, ...hidden, ...outputs]
-	net.forEach((n) => dag.add(n))
+	// const net = [...inputs, ...hidden, ...outputs]
+	// net.forEach((n) => dag.add(n))
 
-	dag.connect(0, 4)
-	dag.connect(1, 5)
-	dag.connect(2, 6)
-	dag.connect(3, 7)
+	dag.add(createInput())
+	dag.add(createInput())
+	dag.add(createNeuron())
 
-	dag.connect(7, 10)
-	dag.connect(7, 11)
+	dag.connect(0, 2)
+	dag.connect(1, 2)
+	// dag.connect(1, 5)
+	// dag.connect(2, 6)
+	// dag.connect(3, 7)
 
-	dag.connect(8, 12)
-	// dag.connect(8, 13)
+	// dag.connect(7, 10)
+	// dag.connect(7, 11)
 
-	dag.connect(9, 12)
-	// dag.connect(9, 13)
+	// dag.connect(8, 12)
+
+	// dag.connect(9, 12)
 
 	// hidden.forEach((unit) => {
 	// 	const other = outputs[randomIndex(outputs.length)]
 	// 	dag.connect(unit, other)
 	// })
 
-	onMount(() => {
-		const output = dag.process()
+	onMount(async () => {
+		const output = await dag.process()
 		console.log('Salida final', output)
 	})
 </script>

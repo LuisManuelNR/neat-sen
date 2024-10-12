@@ -1,13 +1,13 @@
 export class DAG {
 	#nodes: Map<number, DAGUnit> = new Map()
-	#deps: Map<number, Set<number>> = new Map()
+	#connections: Map<number, Set<number>> = new Map()
 	#sorted: Set<number>[] = []
 	#id = -1
 
 	add(unit: DAGUnit) {
 		this.#id++
 		this.#nodes.set(this.#id, unit)
-		this.#deps.set(this.#id, new Set())
+		this.#connections.set(this.#id, new Set())
 		this.#sorted = []
 	}
 
@@ -23,30 +23,43 @@ export class DAG {
 			)
 		}
 
-		this.#deps.get(from)!.add(to)
-		toUnit.inputs.add(fromUnit.process)
+		this.#connections.get(from)!.add(to)
+		toUnit.connect(fromUnit)
 		this.#sorted = []
 	}
 
-	process() {
+	async process() {
 		this.#sort()
-		let result: any[] = []
-		this.#sorted.at(-1)?.forEach((id) => {
-			const unit = this.#nodes.get(id)!
-			result.push(unit.process())
+
+		const promises: Promise<void>[] = []
+
+		this.#sorted.at(-1)!.forEach((nodeId) => {
+			promises.push(this.#nodes.get(nodeId)!.process())
 		})
-		return result
+
+		await Promise.all(promises)
+
+		return this.#sorted
 	}
 
 	#sort() {
 		if (this.#sorted.length) return
 		//@ts-ignore
-		this.#sorted = toposort(this.#deps)
+		this.#sorted = toposort(this.#connections)
+		console.log('sorted', this.#sorted)
 	}
 
 	garph() {
 		this.#sort()
-		return this.#sorted
+		const units: Array<{ from: number; to: number[] }[]> = []
+		this.#sorted.forEach((batch) => {
+			const layer: { from: number; to: number[] }[] = []
+			batch.forEach((unit) => {
+				layer.push({ from: unit, to: Array.from(this.#connections.get(unit)!) })
+			})
+			units.push(layer)
+		})
+		return units
 	}
 }
 
@@ -58,19 +71,40 @@ type DAGUnitConfig<I, O> = {
 }
 export class DAGUnit<I = any, O = any> {
 	conf: DAGUnitConfig<I, O>
-	inputs: Set<DAGUnit['process']> = new Set()
+	output: O
+	#dependeants: Set<Promise<any>> = new Set()
+	#listeners: Record<string, Array<() => void>> = {}
 
 	constructor(config: DAGUnitConfig<I, O>) {
 		this.conf = config
+		this.output = config.outputTest
 		this.process = this.process.bind(this)
 	}
 
-	process() {
-		const outputs: any[] = []
-		for (const otherProcess of this.inputs) {
-			outputs.push(otherProcess())
+	connect(from: DAGUnit) {
+		this.#dependeants.add(from.process())
+		this.#trigger('connect')
+	}
+
+	async process() {
+		const inputs = await Promise.all(this.#dependeants)
+		this.output = await this.conf.evaluate(inputs)
+		return this.output
+	}
+
+	on(action: 'connect' | 'process', callback: () => void) {
+		if (!this.#listeners[action]) {
+			this.#listeners[action] = []
 		}
-		return this.conf.evaluate(outputs)
+		this.#listeners[action].push(callback)
+	}
+
+	#trigger(action: 'connect' | 'process') {
+		if (this.#listeners[action]) {
+			for (const callback of this.#listeners[action]) {
+				callback()
+			}
+		}
 	}
 }
 

@@ -1,28 +1,22 @@
 <script lang="ts">
-	import { Brain } from '$lib/KAN/Brain'
-	import { range } from '$lib/utils'
-	import LineChart from '$lib/Viz/LineChart.svelte'
-	import Network from '$lib/Viz/Network.svelte'
-	import Spline from '$lib/Viz/Spline.svelte'
+	import Dag from '$lib/Dag.svelte'
+	import { Brain } from '$lib/MLP/Brain'
 	import { randomNumber, runOnFrames } from '@chasi/ui/utils'
 
-	let inputsSize = 1
-	let outputsSize = 1
+	let inputsSize = 3
+	let outputsSize = 2
 	let network = new Brain(inputsSize, outputsSize)
+	let forwardResult: number[] = []
 
-	function handleAddLayer() {
-		network.addLayer()
-		network = network
-	}
-	function handleForward() {
+	async function handleForward() {
 		const inputs = Array.from({ length: inputsSize }, () => Math.random())
-		console.log(inputs)
-		network.forward(inputs)
-		network = network
+		forwardResult = await network.forward(inputs)
 	}
 
 	function randomizeNetwork() {
-		network = new Brain(Math.floor(randomNumber(1, 5)), Math.floor(randomNumber(1, 5)))
+		inputsSize = Math.floor(randomNumber(1, 5))
+		outputsSize = Math.floor(randomNumber(1, 5))
+		network = new Brain(inputsSize, outputsSize)
 	}
 
 	let stopmutation: (() => void) | undefined
@@ -36,24 +30,20 @@
 			network = network
 		})
 	}
-
-	const x = range([0, 1], 100)
-	$: y = x.map((n) => network.forward([n])[0])
 </script>
 
 <div class="viz d-grid gap-4">
 	<div class="card d-grid gap-4">
 		<button class="btn" on:click={handleForward}> forward </button>
-		<button class="btn" on:click={handleAddLayer}> add layer </button>
 		<button class="btn" on:click={randomizeNetwork}> randomize </button>
 		{#if stopmutation}
-			<button class="btn" on:click={hanldeStop}> stop mutation </button>
+			<button class="btn error" on:click={hanldeStop}> stop mutation </button>
 		{:else}
-			<button class="btn" on:click={handleMutate}> mutate </button>
+			<button class="btn success" on:click={handleMutate}> mutate </button>
 		{/if}
+		<p>forward: {JSON.stringify(forwardResult, null, 2)}</p>
 	</div>
-	<Network {network}></Network>
-	<LineChart {x} {y}></LineChart>
+	<Dag dag={network.dag}></Dag>
 </div>
 
 <style>
