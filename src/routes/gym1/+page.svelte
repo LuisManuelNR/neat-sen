@@ -4,12 +4,12 @@
 	import Simulator from '$lib/Viz/Simulator.svelte'
 	import { randomNumber, linearScale } from '@chasi/ui/utils'
 
-	const dataset = Array.from({ length: 10 }, (v, i) => [i / 10, 2])
+	const dataset = Array.from({ length: 10 }, (v, i) => [randomNumber(-1, 1), randomNumber(-1, 1)])
 	const realY = dataset.map((n) => realFunction(n))
 
 	function realFunction(xs: number[]) {
-		return xs[0] * xs[1]
-		// return Math.atan2(xs[0], xs[1])
+		// return xs[0] * xs[1]
+		return Math.atan2(xs[0], xs[1])
 	}
 	class Agent extends Genome {
 		constructor() {
@@ -17,17 +17,16 @@
 		}
 
 		train() {
-			this.inputs = [randomNumber(-1, 1), randomNumber(-1, 1)]
+			this.inputs = [Math.random(), Math.random()]
 			this.outputs = this.brain.forward(this.inputs)
 
 			const real = realFunction(this.inputs)
-			const nOut = linearScale(this.outputs[0], -1, 1, 0, 1)
-			const error = Math.abs(nOut - real)
+			const error = Math.abs(this.outputs[0] - real)
 			this.fitness += 1 / (1 + error)
 		}
 
 		evaluate() {
-			return dataset.map((n) => linearScale(this.brain.forward(n)[0], -1, 1, 0, 1))
+			return dataset.map((n) => this.brain.forward(n)[0])
 		}
 	}
 

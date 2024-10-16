@@ -1,5 +1,5 @@
 import { Layer } from './Layer'
-import { probably } from '$lib/utils'
+import { probably, silu } from '$lib/utils'
 
 type BrainOptions = {
 	mutationRate?: number
@@ -24,7 +24,7 @@ export class Brain {
 
 	forward(inputs: number[]) {
 		// Propagar a través de todas las capas
-		let outputs = inputs
+		let outputs = inputs.map(silu)
 		for (const layer of this.layers) {
 			outputs = layer.forward(outputs)
 		}

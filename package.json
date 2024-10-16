@@ -28,6 +28,6 @@
 	"dependencies": {
 		"@chasi/ui": "^0.2.117",
 		"@mdi/js": "^7.4.47",
-		"js-pytorch": "^0.6.0"
+		"mathjs": "^13.2.0"
 	}
 }

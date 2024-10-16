@@ -1,90 +1,77 @@
-import { clamp, linspace, randomGaussian } from '$lib/utils'
+import { clamp, randomGaussian } from '$lib/utils'
 
+// BSpline para ser usada en una red Kolmogorov-Arnold Networks
 export class BSpline {
-	points: number[]
-	#degree: number
-	extended: number[]
+	coeficients: number[]
+	degree: number
+	knots: number[]
+	basisFunctions: Array<(x: number) => number>
 
-	constructor(points: number[] | number, degree = 3) {
-		this.#degree = degree
-
-		if (typeof points === 'number') {
-			this.points = linspace([-1, 1], points)
-		} else {
-			this.points = [...points]
-		}
-
-		this.extended = this.#extendGrid(this.points, this.#degree - 1)
+	constructor(coeficients: number[] | number, degree = 3) {
+		// Si coeficients es un número, genera un array de coeficientes aleatorios
+		this.coeficients = Array.isArray(coeficients)
+			? coeficients
+			: Array(coeficients)
+					.fill(0)
+					.map(() => Math.random())
+		this.degree = degree
+		this.knots = this.generateUniformKnots(this.coeficients.length, degree)
+		this.basisFunctions = this.generateBasisFunctions()
 
 		this.evaluate = this.evaluate.bind(this)
+		this.plotBasis = this.plotBasis.bind(this)
 		this.mutate = this.mutate.bind(this)
 		this.clone = this.clone.bind(this)
 	}
 
-	#extendGrid(grid: number[], k: number): number[] {
-		const nIntervals = grid.length - 1
-		const bucketSize = (grid[grid.length - 1] - grid[0]) / nIntervals
-		let extendedGrid = [...grid]
-
-		for (let i = 0; i < k; i++) {
-			extendedGrid = [extendedGrid[0] - bucketSize, ...extendedGrid]
-			extendedGrid = [...extendedGrid, extendedGrid[extendedGrid.length - 1] + bucketSize]
-		}
-		return extendedGrid
+	// Generación de los nudos de forma uniforme
+	generateUniformKnots(numCoefs: number, degree: number): number[] {
+		const n = numCoefs + degree + 1
+		return Array.from({ length: n }, (_, i) => i / (n - 1))
 	}
 
-	basis(xEval: number[], grid: number[]): number[][] {
-		// Extiende el grid de nudos
-		const knots = this.extended
-		const numBases = knots.length - this.#degree - 1
-
-		// Inicializa las funciones base para el caso base de orden 0
-		let bases: number[][] = Array(numBases).fill(null).map(() => Array(xEval.length).fill(0))
-		for (let i = 0; i < numBases; i++) {
-			for (let j = 0; j < xEval.length; j++) {
-				const t = xEval[j]
-				bases[i][j] = t >= knots[i] && t < knots[i + 1] ? 1.0 : 0.0
+	// Generación de las funciones base utilizando la recursión de De Boor-Cox
+	generateBasisFunctions(): Array<(x: number) => number> {
+		const N = (i: number, k: number, t: number) => {
+			if (k === 0) {
+				return this.knots[i] <= t && t < this.knots[i + 1] ? 1 : 0
+			} else {
+				const left: number =
+					((t - this.knots[i]) / (this.knots[i + k] - this.knots[i])) * N(i, k - 1, t)
+				const right: number =
+					((this.knots[i + k + 1] - t) / (this.knots[i + k + 1] - this.knots[i + 1])) *
+					N(i + 1, k - 1, t)
+				return (left || 0) + (right || 0)
 			}
 		}
-
-		// Calcula las funciones base para el grado especificado `this.#degree`
-		for (let k = 1; k <= this.#degree; k++) {
-			const newBases: number[][] = Array(numBases).fill(null).map(() => Array(xEval.length).fill(0))
-			for (let i = 0; i < numBases - k; i++) {
-				for (let j = 0; j < xEval.length; j++) {
-					const t = xEval[j]
-					const denom1 = knots[i + k] - knots[i]
-					const denom2 = knots[i + k + 1] - knots[i + 1]
-
-					// Evita divisiones por cero usando una pequeña constante en el denominador
-					const adjustedDenom1 = denom1 === 0 ? 1e-10 : denom1
-					const adjustedDenom2 = denom2 === 0 ? 1e-10 : denom2
-
-					const term1 = ((t - knots[i]) / adjustedDenom1) * bases[i][j]
-					const term2 = ((knots[i + k + 1] - t) / adjustedDenom2) * bases[i + 1][j]
-
-					newBases[i][j] = term1 + term2
-				}
-			}
-			bases = newBases
-		}
-		return bases
+		return this.coeficients.map((_, i) => (x: number) => N(i, this.degree, x))
 	}
 
-
+	// Evaluar la B-Spline en un punto x
 	evaluate(x: number): number {
-		const basisAtX = this.basis([x], this.points).map(basis => basis[0])
-		return basisAtX.reduce((sum, basisValue, i) => sum + this.points[i] * basisValue, 0)
+		// for (let k = this.degree; k < this.knots.length - this.degree - 1; k++) {
+		// 	const bFn = this.basisFunctions[k - ]
+		// }
+		return this.coeficients.reduce((sum, coef, i) => sum + coef * this.basisFunctions[i](x), 0)
 	}
 
+	// Visualización de las funciones base (resolution = cuántas x vamos a evaluar contra la función)
+	plotBasis(resolution = 100): number[][] {
+		const xValues = Array.from({ length: resolution }, (_, i) => i / (resolution - 1))
+		return this.basisFunctions.map((basisFunc) => xValues.map((x) => basisFunc(x)))
+	}
+
+	// Mutación de los puntos de control (pequeño cambio aleatorio en coeficientes)
 	mutate() {
-		this.points = this.points.map(c => {
-			c += randomGaussian(0, 0.01)
-			return clamp(c, -1, 1)
+		const mutationStrength = 0.05
+		this.coeficients = this.coeficients.map((c) => {
+			c += randomGaussian(0, mutationStrength)
+			return clamp(c, 0, 1)
 		})
 	}
 
-	clone() {
-		return new BSpline(this.points, this.#degree)
+	// Clonación de la spline
+	clone(): BSpline {
+		return new BSpline([...this.coeficients], this.degree)
 	}
 }

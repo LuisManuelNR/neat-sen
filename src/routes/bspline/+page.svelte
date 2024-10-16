@@ -5,8 +5,8 @@
 	import Spline from '$lib/Viz/Spline.svelte'
 	import { linspace } from '$lib/utils'
 
-	const grid = linspace([-1, 1], 20)
-	let spline = new BSpline(grid, 3)
+	const points = linspace([-1, 1], 10)
+	let spline = new BSpline(points, 3)
 
 	let stop: (() => void) | undefined
 
@@ -16,13 +16,13 @@
 			stop = undefined
 			return
 		}
-		stop = runOnFrames(30, () => {
+		stop = runOnFrames(60, () => {
 			spline.mutate()
 			spline = spline
 		})
 	}
 
-	$: xResult = spline.evaluate(-0.5)
+	$: xResult = spline.evaluate(-1)
 </script>
 
 <div class="content d-flex gap-4 mb-4">

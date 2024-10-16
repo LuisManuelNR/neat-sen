@@ -1,5 +1,5 @@
 <script lang="ts" context="module">
-	const domain = [-1, 1] as [number, number]
+	const domain = [0, 1] as [number, number]
 </script>
 
 <script lang="ts">
@@ -13,7 +13,7 @@
 	export let helpers = false
 
 	const margin = helpers ? 40 : 0
-	$: x = linspace(domain, 1000)
+	$: x = linspace(domain, 100)
 	$: y = x.map(spline.evaluate)
 </script>
 
@@ -27,8 +27,8 @@
 	>
 		<CPath domainX={domain} domainY={domain} {x} {y} color="var(--brand)"></CPath>
 		{#if helpers}
-			{@const points = linspace(domain, spline.points.length)}
-			{#each spline.points as point, i}
+			{@const points = linspace(domain, spline.coeficients.length)}
+			{#each spline.coeficients as point, i}
 				<CCircle
 					x={points[i]}
 					y={point}

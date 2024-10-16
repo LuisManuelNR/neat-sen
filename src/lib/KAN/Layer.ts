@@ -11,7 +11,7 @@ export class Layer {
 
 		// Crear splines para cada combinación de input y output
 		for (let i = 0; i < outputs * inputs; i++) {
-			this.splines.push(new BSpline(20, 3))
+			this.splines.push(new BSpline(4, 3))
 		}
 	}
 
