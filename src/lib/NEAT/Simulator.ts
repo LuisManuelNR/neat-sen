@@ -1,5 +1,4 @@
-// import { Brain } from '$lib/KAN/Brain'
-import { Brain } from '$lib/MLP/Brain'
+import { Brain } from '$lib/KAN/Brain'
 
 export class Genome {
 	brain: Brain
@@ -12,9 +11,9 @@ export class Genome {
 		this.outputs = new Array(outputs).fill(0)
 	}
 
-	train() {}
+	train() { }
 
-	predict() {}
+	predict() { }
 }
 
 export type CreateFunction<T> = () => T

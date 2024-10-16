@@ -1,10 +1,10 @@
 <script lang="ts" context="module">
-	const domain = [0, 1] as [number, number]
+	const domain = [-1, 1] as [number, number]
 </script>
 
 <script lang="ts">
 	import type { BSpline } from '$lib/KAN/BSpline'
-	import { range } from '$lib/utils'
+	import { linspace } from '$lib/utils'
 	import { CGraph, CPath, CAxisX, CAxisY, CCircle } from '@chasi/ui/graph'
 
 	export let spline: BSpline
@@ -13,7 +13,7 @@
 	export let helpers = false
 
 	const margin = helpers ? 40 : 0
-	$: x = range(domain, 30)
+	$: x = linspace(domain, 1000)
 	$: y = x.map(spline.evaluate)
 </script>
 
@@ -27,8 +27,8 @@
 	>
 		<CPath domainX={domain} domainY={domain} {x} {y} color="var(--brand)"></CPath>
 		{#if helpers}
-			{@const points = range(domain, spline.controlPoints.length)}
-			{#each spline.controlPoints as point, i}
+			{@const points = linspace(domain, spline.points.length)}
+			{#each spline.points as point, i}
 				<CCircle
 					x={points[i]}
 					y={point}

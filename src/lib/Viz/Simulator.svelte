@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { range } from '$lib/utils'
+	import { linspace } from '$lib/utils'
 	import {
 		Simulation,
 		type CreateFunction,
@@ -24,7 +24,7 @@
 	let frames = 0
 	let generations = 0
 	let globalFitness: number[] = []
-	$: genX = range([generations - globalFitness.length, generations], globalFitness.length)
+	$: genX = linspace([generations - globalFitness.length, generations], globalFitness.length)
 
 	const simulation = new Simulation(population, create, fitnessSort)
 
@@ -87,11 +87,11 @@
 
 <div class="metrics d-grid gap-4">
 	<LineChart x={genX} y={globalFitness} height={400}></LineChart>
-	<!-- <Network
+	<Network
 		inputs={simulation.population[0].inputs}
 		outputs={simulation.population[0].outputs}
 		network={simulation.population[0].brain}
-	></Network> -->
+	></Network>
 </div>
 
 <style>

@@ -20,7 +20,7 @@
 		distanceToTarget = 0
 
 		constructor() {
-			super(2, 1)
+			super(4, 1)
 			this.go.x = randomNumber(50, w - 50)
 			this.go.y = randomNumber(50, h - 50)
 			this.target.x = randomNumber(50, w - 50)
@@ -36,12 +36,12 @@
 			// this.go.angle = clamp(this.go.angle, -Math.PI, Math.PI)
 
 			this.inputs = [
-				linearScale(this.target.y - this.go.y, -h, h, 0, 1),
-				linearScale(this.target.x - this.go.x, -w, w, 0, 1)
-				// linearScale(this.go.x, 0, w, 0, 1),
-				// linearScale(this.go.y, 0, h, 0, 1),
-				// linearScale(this.target.x, 0, w, 0, 1),
-				// linearScale(this.target.y, 0, h, 0, 1),
+				// linearScale(this.target.y - this.go.y, -h, h, 0, 1),
+				// linearScale(this.target.x - this.go.x, -w, w, 0, 1)
+				linearScale(this.go.x, 0, w, 0, 1),
+				linearScale(this.go.y, 0, h, 0, 1),
+				linearScale(this.target.x, 0, w, 0, 1),
+				linearScale(this.target.y, 0, h, 0, 1)
 				// linearScale(this.go.angle, -Math.PI, Math.PI, 0, 1)
 				// linearScale(this.speed, 0, MAX_SPEED, 0, 1),
 				// linearScale(this.distanceToTarget, 0, w, 0, 1)
@@ -76,11 +76,8 @@
 		}
 
 		updateFitness() {
-			// const objective = this.go.angleTo(this.target)
-			const caca = [Math.random(), Math.random()]
-			const objective = Math.atan2(caca[0], caca[1])
-			const out = this.brain.forward(caca)[0]
-			const error = Math.abs(out - objective)
+			const objective = this.go.angleTo(this.target)
+			const error = Math.abs(this.outputs[0] - objective)
 			this.fitness += 1 / (1 + error)
 
 			// if (this.distanceToTarget < this.prevDistance) {

@@ -1,6 +1,6 @@
 import { isInside, randomNumber } from '@chasi/ui/utils'
 
-export function range(range: [number, number], N: number): number[] {
+export function linspace(range: [number, number], N: number): number[] {
 	const [min, max] = range
 	const result: number[] = []
 	const step = (max - min) / (N - 1) // Calcular el tamaño del paso

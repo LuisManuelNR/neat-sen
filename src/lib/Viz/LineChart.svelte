@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { range } from '$lib/utils'
+	import { linspace } from '$lib/utils'
 	import { CGraph, CPath, CAxisX, CAxisY } from '@chasi/ui/graph'
 	import { max, min } from '@chasi/ui/utils'
 
@@ -7,7 +7,7 @@
 	export let x: number[] = []
 	export let height = 50
 
-	$: _x = x.length ? x : range([0, y.length], y.length)
+	$: _x = x.length ? x : linspace([0, y.length], y.length)
 	$: domainX = [min(_x), max(_x)] as [number, number]
 	$: domainY = [min(y), max(y)] as [number, number]
 </script>

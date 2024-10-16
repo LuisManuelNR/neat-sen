@@ -16,7 +16,7 @@ export class Brain {
 		this.#inputSize = inputSize
 		this.#outputSize = outputSize
 
-		this.#mutationRate = opt?.mutationRate || 0.8
+		this.#mutationRate = opt?.mutationRate || 0.3
 		this.#mutationLayerRate = opt?.mutationLayerRate || 0.05
 
 		this.layers = [new Layer(inputSize, outputSize)]

@@ -1,64 +1,31 @@
 <script lang="ts">
-	import { DAG, DAGUnit } from '$lib/DAG'
-	import Dag from '$lib/Dag.svelte'
-	import { onMount } from 'svelte'
+	import { BSpline } from '$lib/KAN/BSpline'
+	import { linspace } from '$lib/utils'
+	import { CAxisX, CAxisY, CGraph, CPath } from '@chasi/ui/graph'
+	import { max, min, randomColor } from '@chasi/ui/utils'
 
-	const dag = new DAG()
+	const domain = [-1, 1] as [number, number]
+	const grid = linspace(domain, 7)
+	const x = linspace(domain, 1000)
 
-	function createInput() {
-		return new DAGUnit({
-			inputTest: 0,
-			outputTest: 0,
-			evaluate() {
-				return 2
-			}
-		})
-	}
-
-	function createNeuron() {
-		return new DAGUnit({
-			inputTest: 0,
-			outputTest: 0,
-			evaluate(input) {
-				console.log('calling', input)
-				return input.reduce((p, c) => p + c, 0)
-			}
-		})
-	}
-
-	// const inputs = Array.from({ length: 4 }, createInput)
-	// const hidden = Array.from({ length: 6 }, createNeuron)
-	// const outputs = Array.from({ length: 3 }, createNeuron)
-
-	// const net = [...inputs, ...hidden, ...outputs]
-	// net.forEach((n) => dag.add(n))
-
-	dag.add(createInput())
-	dag.add(createInput())
-	dag.add(createNeuron())
-
-	dag.connect(0, 2)
-	dag.connect(1, 2)
-	// dag.connect(1, 5)
-	// dag.connect(2, 6)
-	// dag.connect(3, 7)
-
-	// dag.connect(7, 10)
-	// dag.connect(7, 11)
-
-	// dag.connect(8, 12)
-
-	// dag.connect(9, 12)
-
-	// hidden.forEach((unit) => {
-	// 	const other = outputs[randomIndex(outputs.length)]
-	// 	dag.connect(unit, other)
-	// })
-
-	onMount(async () => {
-		const output = await dag.process()
-		console.log('Salida final', output)
-	})
+	const spline = new BSpline(grid, 3)
+	const basis = spline.basis(x, grid)
+	// console.log(basis.length)
+	// const domainY = [min(basis[0]), max(basis[0])] as [number, number]
 </script>
 
-<Dag {dag}></Dag>
+<div class="graph mx-auto">
+	<CGraph height={500}>
+		{#each basis as b}
+			<CPath domainX={domain} domainY={domain} {x} y={b} color={randomColor()}></CPath>
+		{/each}
+		<CAxisX {domain} ticksNumber={4}></CAxisX>
+		<CAxisY {domain} ticksNumber={4}></CAxisY>
+	</CGraph>
+</div>
+
+<style>
+	.graph {
+		width: 500px;
+	}
+</style>

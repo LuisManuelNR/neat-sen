@@ -1,86 +1,90 @@
-import { clamp, probably, randomGaussian } from '$lib/utils'
+import { clamp, linspace, randomGaussian } from '$lib/utils'
 
 export class BSpline {
-	controlPoints: number[]
+	points: number[]
 	#degree: number
-	#knots: number[]
+	extended: number[]
 
-	constructor(points = 4) {
-		this.#degree = 3
-		this.controlPoints = Array.from({ length: points }, () => Math.random())
-		this.#knots = this.#generateKnotVector()
+	constructor(points: number[] | number, degree = 3) {
+		this.#degree = degree
+
+		if (typeof points === 'number') {
+			this.points = linspace([-1, 1], points)
+		} else {
+			this.points = [...points]
+		}
+
+		this.extended = this.#extendGrid(this.points, this.#degree - 1)
+
 		this.evaluate = this.evaluate.bind(this)
 		this.mutate = this.mutate.bind(this)
 		this.clone = this.clone.bind(this)
 	}
 
-	evaluate(t: number): number {
-		const n = this.controlPoints.length - 1
-		let result = 0
+	#extendGrid(grid: number[], k: number): number[] {
+		const nIntervals = grid.length - 1
+		const bucketSize = (grid[grid.length - 1] - grid[0]) / nIntervals
+		let extendedGrid = [...grid]
 
-		// Sumatoria de la combinación ponderada de los puntos de control
-		for (let i = 0; i <= n; i++) {
-			const basis = this.basisFN(i, this.#degree, t, this.#knots)
-			result += this.controlPoints[i] * basis
+		for (let i = 0; i < k; i++) {
+			extendedGrid = [extendedGrid[0] - bucketSize, ...extendedGrid]
+			extendedGrid = [...extendedGrid, extendedGrid[extendedGrid.length - 1] + bucketSize]
 		}
-
-		return result
+		return extendedGrid
 	}
 
-	basisFN(i: number, r: number, t: number, u: number[]): number {
-		const u_i = u[i]
-		const u_i1 = u[i + 1]
-		const u_ir = u[i + r]
-		const u_i1r = u[i + r + 1]
+	basis(xEval: number[], grid: number[]): number[][] {
+		// Extiende el grid de nudos
+		const knots = this.extended
+		const numBases = knots.length - this.#degree - 1
 
-		if (r === 0) {
-			if (u_i <= t && t <= u_i1) {
-				return 1
-			} else {
-				return 0
+		// Inicializa las funciones base para el caso base de orden 0
+		let bases: number[][] = Array(numBases).fill(null).map(() => Array(xEval.length).fill(0))
+		for (let i = 0; i < numBases; i++) {
+			for (let j = 0; j < xEval.length; j++) {
+				const t = xEval[j]
+				bases[i][j] = t >= knots[i] && t < knots[i + 1] ? 1.0 : 0.0
 			}
-		} else {
-			let left = 0
-			if (u_ir - u_i !== 0) {
-				left = ((t - u_i) / (u_ir - u_i)) * this.basisFN(i, r - 1, t, u)
-			}
-			let right = 0
-			if (u_i1r - u_i1 !== 0) {
-				right = ((u_i1r - t) / (u_i1r - u_i1)) * this.basisFN(i + 1, r - 1, t, u)
-			}
-			return left + right
 		}
+
+		// Calcula las funciones base para el grado especificado `this.#degree`
+		for (let k = 1; k <= this.#degree; k++) {
+			const newBases: number[][] = Array(numBases).fill(null).map(() => Array(xEval.length).fill(0))
+			for (let i = 0; i < numBases - k; i++) {
+				for (let j = 0; j < xEval.length; j++) {
+					const t = xEval[j]
+					const denom1 = knots[i + k] - knots[i]
+					const denom2 = knots[i + k + 1] - knots[i + 1]
+
+					// Evita divisiones por cero usando una pequeña constante en el denominador
+					const adjustedDenom1 = denom1 === 0 ? 1e-10 : denom1
+					const adjustedDenom2 = denom2 === 0 ? 1e-10 : denom2
+
+					const term1 = ((t - knots[i]) / adjustedDenom1) * bases[i][j]
+					const term2 = ((knots[i + k + 1] - t) / adjustedDenom2) * bases[i + 1][j]
+
+					newBases[i][j] = term1 + term2
+				}
+			}
+			bases = newBases
+		}
+		return bases
 	}
 
-	#generateKnotVector(): number[] {
-		const n = this.controlPoints.length - 1
-		const m = n + this.#degree + 1
-		const knots: number[] = []
 
-		// Los primeros y últimos degree + 1 nudos son iguales para curva abierta
-		for (let i = 0; i <= m; i++) {
-			if (i < this.#degree) {
-				knots.push(0)
-			} else if (i > m - this.#degree) {
-				knots.push(1)
-			} else {
-				knots.push((i - this.#degree) / (m - 2 * this.#degree))
-			}
-		}
-
-		return knots
+	evaluate(x: number): number {
+		const basisAtX = this.basis([x], this.points).map(basis => basis[0])
+		return basisAtX.reduce((sum, basisValue, i) => sum + this.points[i] * basisValue, 0)
 	}
 
 	mutate() {
-		this.controlPoints = this.controlPoints.map((n) => {
-			n += randomGaussian(0, 0.05)
-			return clamp(n, 0, 1)
+		this.points = this.points.map(c => {
+			c += randomGaussian(0, 0.01)
+			return clamp(c, -1, 1)
 		})
 	}
 
 	clone() {
-		const clone = new BSpline(this.controlPoints.length)
-		clone.controlPoints = Array.from(this.controlPoints)
-		return clone
+		return new BSpline(this.points, this.#degree)
 	}
 }
