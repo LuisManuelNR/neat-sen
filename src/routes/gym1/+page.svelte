@@ -4,7 +4,7 @@
 	import Simulator from '$lib/Viz/Simulator.svelte'
 	import { randomNumber, linearScale } from '@chasi/ui/utils'
 
-	const dataset = Array.from({ length: 10 }, (v, i) => [randomNumber(-1, 1), randomNumber(-1, 1)])
+	const dataset = Array.from({ length: 30 }, (v, i) => [i, i + 1])
 	const realY = dataset.map((n) => realFunction(n))
 
 	function realFunction(xs: number[]) {
@@ -27,6 +27,7 @@
 
 		evaluate() {
 			return dataset.map((n) => this.brain.forward(n)[0])
+			// return dataset.map((n) => realFunction(n))
 		}
 	}
 
@@ -35,7 +36,7 @@
 	}
 </script>
 
-<Simulator let:best population={50} {create} defaulEvolutionInterval={100}>
+<Simulator let:best population={1} {create} defaulEvolutionInterval={100}>
 	<div class="d-grid gap-4">
 		<div>
 			<p>output</p>

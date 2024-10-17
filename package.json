@@ -27,7 +27,6 @@
 	"type": "module",
 	"dependencies": {
 		"@chasi/ui": "^0.2.117",
-		"@mdi/js": "^7.4.47",
-		"mathjs": "^13.2.0"
+		"@mdi/js": "^7.4.47"
 	}
 }

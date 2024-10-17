@@ -20,7 +20,7 @@
 
 	let evolutionInterval = defaulEvolutionInterval
 	let simulate = false
-	let step = 1
+	let step = 0
 	let frames = 0
 	let generations = 0
 	let globalFitness: number[] = []
@@ -87,11 +87,11 @@
 
 <div class="metrics d-grid gap-4">
 	<LineChart x={genX} y={globalFitness} height={400}></LineChart>
-	<Network
+	<!-- <Network
 		inputs={simulation.population[0].inputs}
 		outputs={simulation.population[0].outputs}
 		network={simulation.population[0].brain}
-	></Network>
+	></Network> -->
 </div>
 
 <style>

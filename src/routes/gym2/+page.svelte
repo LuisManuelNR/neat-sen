@@ -52,6 +52,7 @@
 			const [newAngle, newSpeed] = this.outputs
 
 			// this.speed = linearScale(newSpeed, 0, 1, 0, MAX_SPEED)
+			// this.go.angle = newAngle
 			this.go.angle = linearScale(newAngle, 0, 1, -Math.PI, Math.PI)
 			// respuesta
 			// this.go.angle = this.go.angleTo(this.target)

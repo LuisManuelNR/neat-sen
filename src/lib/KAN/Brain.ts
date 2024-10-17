@@ -17,7 +17,7 @@ export class Brain {
 		this.#outputSize = outputSize
 
 		this.#mutationRate = opt?.mutationRate || 0.3
-		this.#mutationLayerRate = opt?.mutationLayerRate || 0.05
+		this.#mutationLayerRate = opt?.mutationLayerRate || 0.01
 
 		this.layers = [new Layer(inputSize, outputSize)]
 	}
@@ -82,9 +82,11 @@ export class Brain {
 			this.layers.forEach((l) => l.mutate())
 		}
 		// if (probably(this.#mutationLayerRate)) {
+		// 	this.#mutationLayerRate -= 0.01
 		// 	this.addLayer()
 		// }
-		// if (probably(this.#mutationLayerRate)) {
+		// const inv = 1 / (1 + this.#mutationLayerRate)
+		// if (probably(inv)) {
 		// 	this.removeLayer()
 		// }
 	}

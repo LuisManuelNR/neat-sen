@@ -1,4 +1,5 @@
 import { Brain } from '$lib/KAN/Brain'
+// import { Brain } from '$lib/MLP/Brain'
 
 export class Genome {
 	brain: Brain

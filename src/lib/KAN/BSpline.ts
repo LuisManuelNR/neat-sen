@@ -1,100 +1,87 @@
-import { clamp, randomGaussian } from '$lib/utils'
+import { clamp, linspace, randomGaussian } from '$lib/utils'
 
-// BSpline para ser usada en una red Kolmogorov-Arnold Networks
+// una b-spline C2 (continuidad 2)
 export class BSpline {
-	coeficients: number[]
-	degree: number
-	knots: number[]
-	extendedKnots: number[]
+	points: number[]
+	mutationForce = 0.1
 
-	constructor(coeficients: number[] | number, degree = 3) {
-		this.coeficients = Array.isArray(coeficients)
-			? coeficients
-			: Array(coeficients)
+	constructor(points: number[] | number) {
+		this.points = Array.isArray(points)
+			? points
+			: Array(points)
 					.fill(0)
 					.map(() => Math.random())
-		this.degree = degree
-		this.knots = this.generateUniformKnots(this.coeficients.length, degree)
-		this.extendedKnots = this.extendKnots(this.knots, degree) // Extensión del dominio
 
 		this.evaluate = this.evaluate.bind(this)
-		this.plotBasis = this.plotBasis.bind(this)
 		this.mutate = this.mutate.bind(this)
 		this.clone = this.clone.bind(this)
 	}
 
-	// Extiende la cuadrícula de nudos (equivalente a extend_grid en Python)
-	extendKnots(knots: number[], degree: number): number[] {
-		const n_intervals = knots.length - 1
-		const bucket_size = (knots[knots.length - 1] - knots[0]) / n_intervals
-		let extendedKnots = [...knots]
+	// Evaluar u en la B-Spline usando la fórmula de De Boor
+	evaluate(u: number): number {
+		const n = this.points.length - 1
+		const degree = 3 // para continuidad C2 en B-spline cúbica
+		const maxIndex = n - degree + 1
+		const k = Math.min(Math.floor(u * maxIndex), maxIndex - 1)
+		const t = u * maxIndex - k
+		let d = this.points.slice(k, k + degree + 1)
 
-		for (let i = 0; i < degree; i++) {
-			const leftValue = extendedKnots[0] - bucket_size
-			extendedKnots.unshift(leftValue)
-			const rightValue = extendedKnots[extendedKnots.length - 1] + bucket_size
-			extendedKnots.push(rightValue)
+		for (let r = 1; r <= degree; r++) {
+			for (let j = degree; j >= r; j--) {
+				const alpha = (t - (j - r)) / (degree + 1 - r)
+				d[j] = (1 - alpha) * d[j - 1] + alpha * d[j]
+			}
 		}
-
-		return extendedKnots
+		return d[degree]
 	}
 
-	// Evaluar las funciones base en un punto x utilizando la recursión de De Boor-Cox
-	evaluateBasisFunction(i: number, k: number, x: number): number {
-		if (k === 0) {
-			return this.extendedKnots[i] <= x && x < this.extendedKnots[i + 1] ? 1 : 0
-		} else {
-			const left =
-				((x - this.extendedKnots[i]) / (this.extendedKnots[i + k] - this.extendedKnots[i])) *
-				this.evaluateBasisFunction(i, k - 1, x)
-			const right =
-				((this.extendedKnots[i + k + 1] - x) /
-					(this.extendedKnots[i + k + 1] - this.extendedKnots[i + 1])) *
-				this.evaluateBasisFunction(i + 1, k - 1, x)
-			return (left || 0) + (right || 0)
+	plotSpline(n = 100): number[][] {
+		const x: number[] = linspace([0, 1], n)
+		const y: number[] = x.map(this.evaluate)
+		return [x, y]
+	}
+
+	fitCoefficients(targetFunction: (x: number) => number, numCoefficients: number = 10) {
+		// Definimos puntos de control iniciales
+		this.points = Array(numCoefficients)
+			.fill(0)
+			.map((_, i) => {
+				const x = i / (numCoefficients - 1)
+				return targetFunction(x)
+			})
+
+		// Ajuste de puntos de control para minimizar el error entre la B-Spline y la función objetivo
+		const iterations = 1000
+		const learningRate = 0.01
+
+		for (let iter = 0; iter < iterations; iter++) {
+			let totalError = 0
+
+			for (let i = 0; i < numCoefficients; i++) {
+				const x = i / (numCoefficients - 1)
+				const u = x
+				const error = targetFunction(x) - this.evaluate(u)
+				this.points[i] += learningRate * error
+				totalError += Math.abs(error)
+			}
+
+			// Terminar si el error es suficientemente pequeño
+			if (totalError < 1e-6) break
 		}
-	}
-
-	// Generación de los nudos de forma uniforme
-	generateUniformKnots(numCoefs: number, degree: number): number[] {
-		const n = numCoefs - degree - 1
-		return Array.from({ length: n }, (_, i) => i / (n - 1))
-	}
-
-	// Evaluar la B-Spline en un punto x
-	evaluate(x: number): number {
-		return this.coeficients.reduce(
-			(sum, coef, i) => sum + coef * this.evaluateBasisFunction(i, this.degree, x),
-			0
-		)
-	}
-
-	// Visualización de las funciones base (resolution = cuántas x vamos a evaluar contra la función)
-	plotBasis(resolution = 100): number[][] {
-		const xValues = Array.from({ length: resolution }, (_, i) => i / (resolution - 1))
-		return this.extendedKnots.map((_, i) =>
-			xValues.map((x) => this.evaluateBasisFunction(i, this.degree, x))
-		)
-	}
-
-	// Método para graficar la B-Spline completa en un intervalo determinado
-	plotSpline(resolution = 100) {
-		const xValues = Array.from({ length: resolution }, (_, i) => i / (resolution - 1))
-		const yValues = xValues.map((x) => this.evaluate(x))
-		return [xValues, yValues]
 	}
 
 	// Mutación de los puntos de control (pequeño cambio aleatorio en coeficientes)
 	mutate() {
-		const mutationStrength = 0.01
-		this.coeficients = this.coeficients.map((c) => {
-			c += randomGaussian(0, mutationStrength)
+		if (this.mutationForce < 0) return
+		this.points = this.points.map((c) => {
+			c += randomGaussian(0, this.mutationForce)
 			return clamp(c, 0, 1)
 		})
+		this.mutationForce -= 0.0001
 	}
 
 	// Clonación de la spline
 	clone(): BSpline {
-		return new BSpline([...this.coeficients], this.degree)
+		return new BSpline([...this.points])
 	}
 }

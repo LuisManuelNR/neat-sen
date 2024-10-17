@@ -1,97 +1,56 @@
-import { DAG, DAGUnit } from '$lib/DAG'
-import { probably, silu } from '$lib/utils'
+import { sigmoid } from '$lib/utils'
 
 export class Brain {
-	inputSize: number
-	outputSize: number
-	neurons: Neuron[] = []
-	dag = new DAG()
+	private weights: number[][] // Pesos entre capas
+	private biases: number[] // Sesgos para la capa de salida
 
-	constructor(inputSize: number, outputSize: number) {
-		this.inputSize = inputSize
-		this.outputSize = outputSize
-
-		for (let i = 0; i < inputSize + outputSize; i++) {
-			const neuron = new Neuron()
-			this.neurons.push(neuron)
-			this.dag.add(neuron.dagUnit)
-		}
-
-		for (let i = 0; i < inputSize; i++) {
-			for (let j = 0; j < outputSize; j++) {
-				const inputIndex = i // Índice de neurona de entrada
-				const outputIndex = inputSize + j // Índice de neurona de salida
-				this.dag.connect(inputIndex, outputIndex)
-			}
-		}
+	constructor(inputSize: number, outputSize: number, hiddenSize: number = 8) {
+		// Inicialización de pesos y sesgos con valores aleatorios
+		this.weights = [
+			Array.from({ length: hiddenSize }, () => Math.random() * 2 - 1), // Capa de entrada a capa oculta
+			Array.from({ length: outputSize }, () => Math.random() * 2 - 1) // Capa oculta a capa de salida
+		]
+		this.biases = Array.from({ length: outputSize }, () => Math.random() * 2 - 1)
 	}
 
-	clone() {}
+	// Propagación hacia adelante
+	forward(inputs: number[]): number[] {
+		// Capa oculta: multiplicación de entrada y pesos, luego activación
+		const hiddenOutputs = this.weights[0].map((weight, i) =>
+			sigmoid(inputs.reduce((acc, input, j) => acc + input * weight, 0))
+		)
 
-	async forward(inputs: number[]) {
-		if (inputs.length !== this.inputSize) {
-			throw new Error(`Expected ${this.inputSize} inputs, received ${inputs.length}`)
-		}
+		// Capa de salida: multiplicación de salida de la capa oculta con pesos y aplicación de sesgo
+		const outputs = this.weights[1].map((weight, i) =>
+			sigmoid(
+				hiddenOutputs.reduce((acc, hiddenOutput, j) => acc + hiddenOutput * weight, this.biases[i])
+			)
+		)
 
-		for (let i = 0; i < inputs.length; i++) {
-			this.neurons[i].dagUnit.output = inputs[i]
-		}
-
-		await this.dag.process()
-
-		const outputs: number[] = []
-		for (let i = this.outputSize; i > 0; i--) {
-			outputs.push(this.neurons[i].dagUnit.output)
-		}
 		return outputs
 	}
 
-	mutate() {
-		if (probably(0.3)) {
-			this.addNode()
-		} else if (probably(0.3)) {
-			this.addConnection()
-		}
-	}
-
-	addNode() {}
-
-	addConnection() {}
-}
-
-class Neuron {
-	weights: number[] = []
-	bias = Math.random()
-	dagUnit: DAGUnit
-
-	constructor() {
-		this.dagUnit = new DAGUnit({
-			inputTest: 0,
-			outputTest: 0,
-			evaluate: (input) => {
-				if (input.length !== this.weights.length) {
-					throw new Error(
-						`Invalid input length, expected: ${this.weights.length}, received: ${input.length}`
-					)
+	// Mutación de la red
+	mutate(rate: number = 0.1) {
+		this.weights.forEach((layer) => {
+			for (let i = 0; i < layer.length; i++) {
+				if (Math.random() < rate) {
+					layer[i] += Math.random() * 0.2 - 0.1 // Ajuste pequeño aleatorio
 				}
-				let sum = 0
-				input.forEach((input, i) => {
-					sum += input
-				})
-
-				return silu(sum + this.bias)
 			}
 		})
-
-		this.dagUnit.on('connect', () => {
-			this.weights.push(Math.random())
+		this.biases.forEach((bias, i) => {
+			if (Math.random() < rate) {
+				this.biases[i] += Math.random() * 0.2 - 0.1
+			}
 		})
 	}
 
-	clone() {
-		const clone = new Neuron()
-		clone.weights = [...this.weights]
-		clone.bias = this.bias
+	// Clonación de la red
+	clone(): Brain {
+		const clone = new Brain(this.weights[0].length, this.weights[1].length)
+		clone.weights = this.weights.map((layer) => [...layer])
+		clone.biases = [...this.biases]
 		return clone
 	}
 }
