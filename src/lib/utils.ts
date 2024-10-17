@@ -74,33 +74,6 @@ export function silu(x: number) {
 	return x * sigmoid(x)
 }
 
-export function runEveryFrames(fps = 30, callback: () => void) {
-	const interval = 1000 / fps // Tiempo en ms entre cada frame
-	let now
-	let then = Date.now()
-	let delta
-
-	let timeoutId: number
-
-	function update() {
-		timeoutId = setTimeout(update, interval) // Llama a update en intervalos regulares
-
-		now = Date.now()
-		delta = now - then
-
-		if (delta > interval) {
-			then = now - (delta % interval)
-
-			callback() // Ejecutar el callback
-		}
-	}
-
-	update()
-
-	// Retorna una función para cancelar la ejecución de frames
-	return () => clearTimeout(timeoutId)
-}
-
 export function probably(rate: number) {
 	return Math.random() < rate
 }

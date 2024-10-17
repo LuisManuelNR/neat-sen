@@ -11,9 +11,9 @@ export class Genome {
 		this.outputs = new Array(outputs).fill(0)
 	}
 
-	train() { }
+	train() {}
 
-	predict() { }
+	predict() {}
 }
 
 export type CreateFunction<T> = () => T
@@ -44,10 +44,7 @@ export class Simulation<T extends Genome> {
 	}
 
 	#normalizeFitness(group: T[]) {
-		let sum = 0
-		group.forEach((indi) => {
-			sum += indi.fitness
-		})
+		const sum = group.reduce((total, indi) => total + indi.fitness, 0)
 		group.forEach((indi) => {
 			indi.fitness /= sum
 		})
@@ -77,54 +74,42 @@ export class Simulation<T extends Genome> {
 		const rest = half.slice(elitistas)
 		this.#normalizeFitness(rest)
 
-		const selected = []
-		// Selección por torneo hasta llenar la selección
-		while (selected.length < this.#populationSize - elitistas) {
-			const winner = this.#poolSelecion(rest)
-			selected.push(winner)
-		}
+		const selected = this.#stochasticUniversalSampling(rest, this.#populationSize - elitistas)
 
 		// Actualiza la población combinando elitistas, seleccionados y nuevos individuos
 		this.population = [...elitists, ...selected]
 	}
 
-	#poolSelecion(poulacho: T[]) {
-		// Pick a random number between 0 and sum of all fitness
-		let totalFitness = poulacho.reduce((sum, individual) => sum + individual.fitness, 0)
-		let r = Math.random() * totalFitness
+	#stochasticUniversalSampling(group: T[], numToSelect: number): T[] {
+		const selected: T[] = []
 
-		// Start at 0
+		// Calcular el intervalo de selección
+		const interval = 1 / numToSelect
+		let startPoint = Math.random() * interval
+		let accumulatedFitness = 0
 		let index = 0
 
-		// Keep subtracting fitness until r reaches 0 or less
-		while (r > 0 && index < poulacho.length) {
-			r -= poulacho[index].fitness
-			index += 1
+		// Seleccionar individuos equiespaciados en el fitness acumulativo
+		for (let i = 0; i < numToSelect; i++) {
+			const target = startPoint + i * interval
+			while (accumulatedFitness < target && index < group.length) {
+				accumulatedFitness += group[index].fitness
+				index++
+			}
+
+			// Ajustar índice para que sea válido
+			index = Math.max(0, index - 1)
+
+			// Crear un nuevo individuo desde el seleccionado y aplicar mutación
+			const winner = this.#create()
+			winner.brain = group[index].brain.clone()
+			winner.brain.mutate()
+			selected.push(winner)
 		}
-
-		// Adjust index to make sure it's valid
-		index = Math.max(0, index - 1)
-
-		// Create a new individual from the winner and apply mutation
-		const winner = this.#create()
-		winner.brain = poulacho[index].brain.clone()
-		winner.brain.mutate()
-		return winner
+		return selected
 	}
 	// Obtener la generación actual
 	getGeneration(): number {
 		return this.#generation
 	}
-}
-
-function tieneElementosConMismaReferencia<T>(lista: T[]): boolean {
-	for (let i = 0; i < lista.length; i++) {
-		for (let j = i + 1; j < lista.length; j++) {
-			// Comparamos referencias directamente
-			if (lista[i] === lista[j]) {
-				return true // Hay dos elementos que comparten la misma referencia
-			}
-		}
-	}
-	return false // No se encontraron elementos con la misma referencia
 }

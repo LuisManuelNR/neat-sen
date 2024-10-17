@@ -1,5 +1,6 @@
 import { linearScale, max, min } from '@chasi/ui/utils'
 import { BSpline } from './BSpline'
+import { sigmoid, silu } from '$lib/utils'
 export class Layer {
 	splines: BSpline[] = []
 	inputs: number
@@ -11,7 +12,7 @@ export class Layer {
 
 		// Crear splines para cada combinación de input y output
 		for (let i = 0; i < outputs * inputs; i++) {
-			this.splines.push(new BSpline(4, 3))
+			this.splines.push(new BSpline(15, 3))
 		}
 	}
 
@@ -29,11 +30,12 @@ export class Layer {
 				results[o] += this.splines[splineIndex].evaluate(inputs[i])
 			}
 		}
-		const minO = min([-1, ...results, 1])
-		const maxO = max([-1, ...results, 1])
-		return results.map((n) => linearScale(n, minO, maxO, 0, 1))
-		// return results.map(silu)
+		// const minO = min([0, ...results, 1])
+		// const maxO = max([0, ...results, 1])
+		// return results.map((n) => linearScale(n, minO, maxO, 0, 1))
+		return results.map(sigmoid)
 		// return results.map(Math.tanh)
+		// return results
 	}
 
 	mutate() {

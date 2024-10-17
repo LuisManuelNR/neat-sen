@@ -24,26 +24,69 @@ export class Brain {
 
 	forward(inputs: number[]) {
 		// Propagar a través de todas las capas
-		let outputs = inputs.map(silu)
+		let outputs = inputs
 		for (const layer of this.layers) {
 			outputs = layer.forward(outputs)
 		}
 		return outputs
 	}
 
-	addLayer() {
-		const inputs = this.layers[0].inputs
-		this.layers = [new Layer(this.#inputSize, inputs), ...this.layers]
+	addLayer(position?: number, layerSize?: number) {
+		// Definir la posición y el tamaño de la capa nueva
+		const layerInputSize =
+			position === undefined || position === 0 ? this.#inputSize : this.layers[position - 1].outputs
+		const layerOutputSize = layerSize || this.layers[0].inputs
+
+		const newLayer = new Layer(layerInputSize, layerOutputSize)
+
+		// Insertar la capa en la posición indicada o al comienzo por defecto
+		if (position === undefined || position === 0) {
+			this.layers = [newLayer, ...this.layers]
+		} else {
+			this.layers.splice(position, 0, newLayer)
+		}
+	}
+
+	// Método para remover una capa en una posición específica o la última capa
+	removeLayer(position?: number) {
+		if (this.layers.length <= 1) return
+
+		// Si no se da posición, eliminar la última capa
+		if (position === undefined) {
+			position = this.layers.length - 1
+		}
+
+		// Validar que la posición esté dentro del rango
+		if (position < 0 || position >= this.layers.length) {
+			throw new Error(
+				`Posición inválida: ${position}. El índice debe estar entre 0 y ${this.layers.length - 1}`
+			)
+		}
+
+		// Remover la capa en la posición indicada
+		this.layers.splice(position, 1)
+
+		// Ajustar las conexiones de capas si se elimina una capa intermedia
+		if (position > 0 && position < this.layers.length) {
+			const previousLayer = this.layers[position - 1]
+			const nextLayer = this.layers[position]
+			previousLayer.outputs = nextLayer.inputs
+		} else if (position === 0 && this.layers.length > 0) {
+			// Si se elimina la primera capa, conectar la entrada general a la nueva primera capa
+			this.layers[0].inputs = this.#inputSize
+		}
 	}
 
 	mutate() {
 		if (probably(this.#mutationRate)) {
 			this.layers.forEach((l) => l.mutate())
 		}
-		const complexity = 1 / (1 + this.layers.length)
-		if (probably(this.#mutationLayerRate * complexity)) {
-			this.addLayer()
-		}
+		// if (probably(this.#mutationLayerRate)) {
+		// 	this.addLayer()
+		// }
+		// if (probably(this.#mutationLayerRate)) {
+		// 	this.removeLayer()
+		// }
 	}
 
 	clone() {

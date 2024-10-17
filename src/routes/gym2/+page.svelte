@@ -7,7 +7,6 @@
 	import Simulator from '$lib/Viz/Simulator.svelte'
 	import { clamp } from '$lib/utils'
 
-	let seeAll = false
 	const MAX_SPEED = 6
 	const w = 1000
 	const h = 600
@@ -36,8 +35,8 @@
 			// this.go.angle = clamp(this.go.angle, -Math.PI, Math.PI)
 
 			this.inputs = [
-				linearScale(Math.abs(this.target.y - this.go.y), 0, h, -1, 1),
-				linearScale(Math.abs(this.target.x - this.go.x), 0, w, -1, 1)
+				linearScale(Math.abs(this.target.y - this.go.y), 0, h, 0, 1),
+				linearScale(Math.abs(this.target.x - this.go.x), 0, w, 0, 1)
 				// linearScale(this.go.x, 0, w, 0, 1),
 				// linearScale(this.go.y, 0, h, 0, 1),
 				// linearScale(this.target.x, 0, w, 0, 1),
@@ -53,7 +52,7 @@
 			const [newAngle, newSpeed] = this.outputs
 
 			// this.speed = linearScale(newSpeed, 0, 1, 0, MAX_SPEED)
-			this.go.angle = linearScale(newAngle, -1, 1, -Math.PI, Math.PI)
+			this.go.angle = linearScale(newAngle, 0, 1, -Math.PI, Math.PI)
 			// respuesta
 			// this.go.angle = this.go.angleTo(this.target)
 		}
