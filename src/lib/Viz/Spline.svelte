@@ -4,6 +4,7 @@
 
 <script lang="ts">
 	import type { BSpline } from '$lib/KAN/BSpline'
+	import { linspace } from '$lib/utils'
 	import { CGraph, CPath, CAxisX, CAxisY } from '@chasi/ui/graph'
 
 	export let spline: BSpline
@@ -12,7 +13,8 @@
 	export let helpers = false
 
 	const margin = helpers ? 40 : 0
-	$: p = spline.plotSpline(30)
+	$: x = linspace([0, 1], 100)
+	$: y = x.map((v) => spline.evaluate(v))
 </script>
 
 <div class="spline" style:width="{width}px">
@@ -23,7 +25,7 @@
 		marginRight={margin}
 		marginTop={margin}
 	>
-		<CPath domainX={domain} domainY={domain} x={p[0]} y={p[1]} color="var(--brand)"></CPath>
+		<CPath domainX={domain} domainY={domain} {x} {y} color="var(--brand)"></CPath>
 		{#if helpers}
 			<CAxisX {domain} ticksNumber={5}></CAxisX>
 			<CAxisY {domain} ticksNumber={5}></CAxisY>

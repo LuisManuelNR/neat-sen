@@ -1,16 +1,16 @@
 <script lang="ts">
 	import Dag from '$lib/Dag.svelte'
-	import { Brain } from '$lib/MLP/Brain'
+	import { Brain } from '$lib/KAN/Brain'
 	import { randomNumber, runOnFrames } from '@chasi/ui/utils'
 
-	let inputsSize = 3
-	let outputsSize = 2
+	let inputsSize = 2
+	let outputsSize = 1
 	let network = new Brain(inputsSize, outputsSize)
 	let forwardResult: number[] = []
 
 	async function handleForward() {
-		const inputs = Array.from({ length: inputsSize }, () => Math.random())
-		forwardResult = await network.forward(inputs)
+		// const inputs = Array.from({ length: inputsSize }, () => Math.random())
+		forwardResult = await network.forward([1, 1])
 	}
 
 	function randomizeNetwork() {
@@ -30,11 +30,21 @@
 			network = network
 		})
 	}
+	function addNode() {
+		network.addNode()
+		network = network
+	}
+	function addConnection() {
+		network.addEdge()
+		network = network
+	}
 </script>
 
 <div class="viz d-grid gap-4">
 	<div class="card d-grid gap-4">
 		<button class="btn" on:click={handleForward}> forward </button>
+		<button class="btn" on:click={addNode}> add node </button>
+		<button class="btn" on:click={addConnection}> add connection </button>
 		<button class="btn" on:click={randomizeNetwork}> randomize </button>
 		{#if stopmutation}
 			<button class="btn error" on:click={hanldeStop}> stop mutation </button>

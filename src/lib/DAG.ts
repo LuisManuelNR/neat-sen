@@ -1,61 +1,80 @@
+
+type Evaluate = (...args: any) => any
 export class DAG {
-	#nodes: Map<number, DAGUnit> = new Map()
-	#connections: Map<number, Set<number>> = new Map()
+	nodes: Map<number, DAGUnit> = new Map()
+	connections: Map<number, Set<number>> = new Map()
 	#sorted: Set<number>[] = []
 	#id = -1
 
-	add(unit: DAGUnit) {
+	add(evaluate: Evaluate) {
 		this.#id++
-		this.#nodes.set(this.#id, unit)
-		this.#connections.set(this.#id, new Set())
+		this.nodes.set(this.#id, new DAGUnit(evaluate))
+		this.connections.set(this.#id, new Set())
 		this.#sorted = []
+		return this.#id
 	}
 
 	connect(from: number, to: number) {
-		const fromUnit = this.#nodes.get(from)
-		if (!fromUnit) throw new Error(`Unit ${fromUnit} must be added before connect`)
-		const toUnit = this.#nodes.get(to)
-		if (!toUnit) throw new Error(`Unit ${toUnit} must be added before connect`)
+		const fromUnit = this.nodes.get(from)
+		if (!fromUnit) throw new Error(`Unit ${from} must be added before connect`)
+		const toUnit = this.nodes.get(to)
+		if (!toUnit) throw new Error(`Unit ${to} must be added before connect`)
 
-		if (fromUnit.conf.outputTest !== toUnit.conf.inputTest) {
-			throw new Error(
-				`Connection from Unit${from}:${fromUnit.conf.outputTest} => Unit${to}:${toUnit.conf.inputTest} is invalid`
-			)
-		}
-
-		this.#connections.get(from)!.add(to)
-		toUnit.connect(fromUnit)
+		this.connections.get(from)!.add(to)
+		fromUnit.connect(toUnit)
 		this.#sorted = []
 	}
 
-	async process() {
-		this.#sort()
+	disconnect(from: number, to: number) {
+		const fromUnit = this.nodes.get(from)
+		if (!fromUnit) throw new Error(`Unit ${from} must be added before connect`)
+		const toUnit = this.nodes.get(to)
+		if (!toUnit) throw new Error(`Unit ${to} must be added before connect`)
 
-		const promises: Promise<void>[] = []
+		this.connections.get(from)!.delete(to)
+		fromUnit.disconnect(toUnit)
+		this.#sorted = []
+	}
 
-		this.#sorted.at(-1)!.forEach((nodeId) => {
-			promises.push(this.#nodes.get(nodeId)!.process())
+	async process(inputs: any[]) {
+		this.sort()
+
+		let batchResult = inputs
+
+		this.#sorted[0].forEach(id => {
+			const node = this.nodes.get(id)!
+			node.value.push(batchResult[id])
 		})
 
-		await Promise.all(promises)
+		for (const batch of this.#sorted) {
+			const promises: Promise<void>[] = []
 
+			batch.forEach(id => {
+				const node = this.nodes.get(id)!
+				promises.push(node.process())
+			})
+
+			batchResult = await Promise.all(promises)
+		}
+
+		return batchResult
+	}
+
+	sort() {
+		if (this.#sorted.length) return
+		//@ts-ignore
+		this.#sorted = toposort(this.connections)
+		console.log('sorted', this.#sorted)
 		return this.#sorted
 	}
 
-	#sort() {
-		if (this.#sorted.length) return
-		//@ts-ignore
-		this.#sorted = toposort(this.#connections)
-		console.log('sorted', this.#sorted)
-	}
-
 	garph() {
-		this.#sort()
+		this.sort()
 		const units: Array<{ from: number; to: number[] }[]> = []
 		this.#sorted.forEach((batch) => {
 			const layer: { from: number; to: number[] }[] = []
 			batch.forEach((unit) => {
-				layer.push({ from: unit, to: Array.from(this.#connections.get(unit)!) })
+				layer.push({ from: unit, to: Array.from(this.connections.get(unit)!) })
 			})
 			units.push(layer)
 		})
@@ -63,48 +82,34 @@ export class DAG {
 	}
 }
 
-type DAGUnitFunction<I, O> = (input: I[]) => O
-type DAGUnitConfig<I, O> = {
-	inputTest: I
-	outputTest: O
-	evaluate: DAGUnitFunction<I, O>
-}
-export class DAGUnit<I = any, O = any> {
-	conf: DAGUnitConfig<I, O>
-	output: O
-	#dependeants: Set<Promise<any>> = new Set()
-	#listeners: Record<string, Array<() => void>> = {}
+export class DAGUnit {
+	#dependeants: Set<DAGUnit> = new Set()
+	evaluate: Evaluate
+	value: any[]
 
-	constructor(config: DAGUnitConfig<I, O>) {
-		this.conf = config
-		this.output = config.outputTest
-		this.process = this.process.bind(this)
+	constructor(evaluate: Evaluate) {
+		this.evaluate = evaluate
+		this.value = []
 	}
 
-	connect(from: DAGUnit) {
-		this.#dependeants.add(from.process())
-		this.#trigger('connect')
+	connect(to: DAGUnit) {
+		this.#dependeants.add(to)
+	}
+
+	disconnect(to: DAGUnit) {
+		this.#dependeants.delete(to)
 	}
 
 	async process() {
-		const inputs = await Promise.all(this.#dependeants)
-		this.output = await this.conf.evaluate(inputs)
-		return this.output
-	}
+		const result = await this.evaluate(this.value)
 
-	on(action: 'connect' | 'process', callback: () => void) {
-		if (!this.#listeners[action]) {
-			this.#listeners[action] = []
-		}
-		this.#listeners[action].push(callback)
-	}
+		this.#dependeants.forEach(unit => {
+			unit.value.push(result)
+		})
 
-	#trigger(action: 'connect' | 'process') {
-		if (this.#listeners[action]) {
-			for (const callback of this.#listeners[action]) {
-				callback()
-			}
-		}
+		this.value = []
+
+		return result
 	}
 }
 

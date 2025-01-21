@@ -73,6 +73,7 @@
 				strokeWidth="0"
 				color="var(--accent)"
 			/>
+			<!-- <text {x} {y}>{unit}</text> -->
 		{/each}
 	</CGraph>
 </div>
