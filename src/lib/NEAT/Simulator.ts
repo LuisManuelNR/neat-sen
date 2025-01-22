@@ -12,9 +12,9 @@ export class Genome {
 		this.outputs = new Array(outputs).fill(0)
 	}
 
-	train() {}
+	async train() {}
 
-	predict() {}
+	async predict() {}
 }
 
 export type CreateFunction<T> = () => T

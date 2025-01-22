@@ -1,92 +1,77 @@
-import { clamp, randomGaussian } from '$lib/utils'
+import { clamp, linspace, randomGaussian } from '$lib/utils'
 
 export class BSpline {
 	points: number[]
-	private knots: number[]
-	private degree
+	degree
 
-	constructor(points: number[] | number, degree = 3) {
+	constructor(points: number[] | number, degree = 1) {
 		this.points = Array.isArray(points)
 			? points
-			: Array(points).fill(0).map(() => Math.random())
-
+			: Array(points)
+					.fill(0)
+					.map(() => Math.random())
 
 		this.degree = degree
-		this.points = this.extendControlPoints(this.points, this.degree)
-		this.knots = this.generateKnots()
-		// this.knots = this.extendKnots(this.knots, this.degree)
-		this.evaluate = this.evaluate.bind(this)
-		this.mutate = this.mutate.bind(this)
-		this.clone = this.clone.bind(this)
 	}
 
-	extendKnots(knots: number[], degree: number): number[] {
-		const bucket_size = knots[1] - knots[0] // Tamaño entre nudos consecutivos
-		const leftExtended = Array.from(
-			{ length: degree },
-			(_, i) => knots[0] - (i + 1) * bucket_size
-		).reverse()
-		const rightExtended = Array.from(
-			{ length: degree },
-			(_, i) => knots[knots.length - 1] + (i + 1) * bucket_size
+	plot(resolution = 100) {
+		const x = linspace([0, 1], resolution)
+		const y = x.map((v) => this.evaluate(v))
+		return { x, y }
+	}
+
+	evaluate(x: number): number {
+		const n = this.points.length - 1
+		const index = Math.min(Math.floor(x * n), n - 1)
+		const t = x * n - index
+
+		// Evaluación basada en el grado de la spline.
+		switch (this.degree) {
+			case 1: // Spline lineal
+				return this.linearInterpolation(index, t)
+			case 2: // Spline cuadrática
+				return this.quadraticInterpolation(index, t)
+			case 3: // Spline cúbica
+				return this.cubicInterpolation(index, t)
+			default:
+				throw new Error(`Spline degree ${this.degree} not supported.`)
+		}
+	}
+
+	private linearInterpolation(index: number, t: number): number {
+		const y1 = this.points[index]
+		const y2 = this.points[index + 1]
+		return (1 - t) * y1 + t * y2
+	}
+
+	private quadraticInterpolation(index: number, t: number): number {
+		const p0 = this.points[Math.max(0, index - 1)]
+		const p1 = this.points[index]
+		const p2 = this.points[Math.min(this.points.length - 1, index + 1)]
+		return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2
+	}
+
+	private cubicInterpolation(index: number, t: number): number {
+		const p0 = this.points[Math.max(0, index - 1)]
+		const p1 = this.points[index]
+		const p2 = this.points[Math.min(this.points.length - 1, index + 1)]
+		const p3 = this.points[Math.min(this.points.length - 1, index + 2)]
+		return (
+			(-0.5 * p0 + 1.5 * p1 - 1.5 * p2 + 0.5 * p3) * t * t * t +
+			(p0 - 2.5 * p1 + 2 * p2 - 0.5 * p3) * t * t +
+			(-0.5 * p0 + 0.5 * p2) * t +
+			p1
 		)
-		return [...leftExtended, ...knots, ...rightExtended]
-	}
-
-	// Genera un vector de nudos uniforme
-	private generateKnots(): number[] {
-		const n = this.points.length + this.degree + 1
-		return Array.from({ length: n }, (_, i) => i / (n - 1))
-	}
-
-	private extendControlPoints(points: number[], degree: number): number[] {
-		const leftExtension = Array(degree).fill(points[0]) // Repetir el primer punto
-		const rightExtension = Array(degree).fill(points[points.length - 1]) // Repetir el último punto
-		return [...leftExtension, ...points, ...rightExtension]
-	}
-
-	// Evaluar u en la B-Spline usando el algoritmo de De Boor
-	evaluate(u: number): number {
-		const knots = this.knots
-
-		if (u < 0 || u > 1) {
-			throw new Error('El parámetro u debe estar entre 0 y 1.')
-		}
-
-		// Mapear u al dominio de los nudos
-		const low = knots[this.degree]
-		const high = knots[knots.length - this.degree - 1]
-		const uMapped = u * (high - low) + low
-
-		// Encontrar el segmento de los nudos
-		let k = this.degree
-		while (k < knots.length - 1 && !(uMapped >= knots[k] && uMapped < knots[k + 1])) {
-			k++
-		}
-
-		// Inicializar los puntos de control relevantes
-		let d = this.points.slice(k - this.degree, k + 1)
-
-		// Aplicar el algoritmo de De Boor
-		for (let r = 1; r <= this.degree; r++) {
-			for (let j = this.degree; j >= r; j--) {
-				const alpha = (uMapped - knots[k + j - this.degree]) /
-					(knots[k + j - r + 1] - knots[k + j - this.degree])
-				d[j] = (1 - alpha) * d[j - 1] + alpha * d[j]
-			}
-		}
-
-		return d[this.degree]
 	}
 
 	// Mutación de los puntos de control
-	mutate() {
+	mutate(): void {
 		this.points = this.points.map((c) => {
 			if (Math.random() > 0.1) {
-				c += randomGaussian(0, 0.01)
-				c = clamp(c, 0, 1) // Asegurarse de que los valores mutados están en el rango
+				c += randomGaussian(0, 0.1)
+				c = clamp(c, 0, 1)
 			} else if (Math.random() < 0.03) {
-				c = Math.random() // Asume que Math.random() está en [0,1]
+				c = Math.random()
 			}
 			return c
 		})

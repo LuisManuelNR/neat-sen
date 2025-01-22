@@ -87,11 +87,7 @@
 
 <div class="metrics d-grid gap-4">
 	<LineChart x={genX} y={globalFitness} height={400}></LineChart>
-	<!-- <Network
-		inputs={simulation.population[0].inputs}
-		outputs={simulation.population[0].outputs}
-		network={simulation.population[0].brain}
-	></Network> -->
+	<Network network={simulation.population[0].brain}></Network>
 </div>
 
 <style>

@@ -1,5 +1,5 @@
-
 type Evaluate = (...args: any) => any
+type ConnectionTransform = (...args: any) => any
 export class DAG {
 	nodes: Map<number, DAGUnit> = new Map()
 	connections: Map<number, Set<number>> = new Map()
@@ -10,19 +10,19 @@ export class DAG {
 		this.#id++
 		this.nodes.set(this.#id, new DAGUnit(evaluate))
 		this.connections.set(this.#id, new Set())
-		this.#sorted = []
+		this.sort()
 		return this.#id
 	}
 
-	connect(from: number, to: number) {
+	connect(from: number, to: number, fn?: ConnectionTransform) {
 		const fromUnit = this.nodes.get(from)
 		if (!fromUnit) throw new Error(`Unit ${from} must be added before connect`)
 		const toUnit = this.nodes.get(to)
 		if (!toUnit) throw new Error(`Unit ${to} must be added before connect`)
 
 		this.connections.get(from)!.add(to)
-		fromUnit.connect(toUnit)
-		this.#sorted = []
+		fromUnit.connect(toUnit, fn)
+		this.sort()
 	}
 
 	disconnect(from: number, to: number) {
@@ -33,25 +33,20 @@ export class DAG {
 
 		this.connections.get(from)!.delete(to)
 		fromUnit.disconnect(toUnit)
-		this.#sorted = []
+		this.sort()
 	}
 
 	async process(inputs: any[]) {
-		this.sort()
-
 		let batchResult = inputs
-
-		this.#sorted[0].forEach(id => {
-			const node = this.nodes.get(id)!
-			node.value.push(batchResult[id])
-		})
 
 		for (const batch of this.#sorted) {
 			const promises: Promise<void>[] = []
 
-			batch.forEach(id => {
+			batch.forEach((id) => {
 				const node = this.nodes.get(id)!
-				promises.push(node.process())
+				promises.push(async () => {
+					const r = await node.process(batchResult[id])
+				})
 			})
 
 			batchResult = await Promise.all(promises)
@@ -61,15 +56,12 @@ export class DAG {
 	}
 
 	sort() {
-		if (this.#sorted.length) return
 		//@ts-ignore
 		this.#sorted = toposort(this.connections)
-		console.log('sorted', this.#sorted)
 		return this.#sorted
 	}
 
 	garph() {
-		this.sort()
 		const units: Array<{ from: number; to: number[] }[]> = []
 		this.#sorted.forEach((batch) => {
 			const layer: { from: number; to: number[] }[] = []
@@ -81,33 +73,34 @@ export class DAG {
 		return units
 	}
 }
-
 export class DAGUnit {
 	#dependeants: Set<DAGUnit> = new Set()
+	#connectionTranforms: Map<DAGUnit, ConnectionTransform> = new Map()
 	evaluate: Evaluate
-	value: any[]
 
 	constructor(evaluate: Evaluate) {
 		this.evaluate = evaluate
-		this.value = []
 	}
 
-	connect(to: DAGUnit) {
+	connect(to: DAGUnit, fn?: ConnectionTransform) {
 		this.#dependeants.add(to)
+		if (fn) {
+			this.#connectionTranforms.set(to, fn)
+		}
 	}
 
 	disconnect(to: DAGUnit) {
 		this.#dependeants.delete(to)
 	}
 
-	async process() {
-		const result = await this.evaluate(this.value)
+	async process(inputs: any[]) {
+		let result = await this.evaluate(inputs)
 
-		this.#dependeants.forEach(unit => {
-			unit.value.push(result)
+		this.#dependeants.forEach((unit) => {
+			if (this.#connectionTranforms.has(unit)) {
+				result = this.#connectionTranforms.get(unit)!(result)
+			}
 		})
-
-		this.value = []
 
 		return result
 	}

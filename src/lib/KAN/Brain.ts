@@ -1,8 +1,5 @@
-import { Layer } from './Layer'
-import { probably, silu } from '$lib/utils'
-import { DAG, DAGUnit } from '$lib/DAG'
+import { DAG } from '$lib/DAG'
 import { BSpline } from './BSpline'
-import { max, randomNumber } from '@chasi/ui/utils'
 
 export class Brain {
 	#inputSize: number
@@ -23,31 +20,37 @@ export class Brain {
 
 		for (let i = 0; i < outputSize; i++) {
 			const oid = this.dag.add(sumAll)
-			iids.forEach(id => {
-				this.dag.connect(id, oid)
+			iids.forEach((id) => {
+				this.splines.set(id, new BSpline(10))
+				this.dag.connect(id, oid, (input: number) => this.splines.get(id)!.evaluate(input))
 			})
 		}
 	}
 
 	addEdge() {
-		// const sorted = this.dag.sort()
-		// if (!sorted || sorted.length < 3) return
-		// const [inputs, hidden, outputs] = sorted
+		const sorted = this.dag.sort()
+		if (!sorted) return
 
-		const available = []
-		const nodeids = [...this.dag.nodes.keys()]
-		for (let i = 0; i < nodeids.length - this.#outputSize; i++) {
-			const node1 = nodeids[i]
-			for (let j = Math.max(i + 1, this.#inputSize); j < nodeids.length; j++) {
-				const node2 = nodeids[j]
-				if (!this.dag.connections.get(node1)?.has(node2)) {
-					available.push([node1, node2])
-				}
-			}
+		const available: number[][] = []
+		const prevBatch: number[] = []
+		for (let i = 1; i < sorted.length; i++) {
+			const batch = sorted[i]
+			prevBatch.push(...sorted[i - 1])
+			batch.forEach((nodeid) => {
+				prevBatch.forEach((n) => {
+					const node = this.dag.connections.get(n)!
+					if (!node.has(nodeid)) {
+						available.push([n, nodeid])
+					}
+				})
+			})
 		}
 		if (available.length === 0) return
 		const pair = available[Math.floor(Math.random() * available.length)]
-		this.dag.connect(pair[0], pair[1])
+		this.splines.set(pair[0], new BSpline(10))
+		this.dag.connect(pair[0], pair[1], (input: number) =>
+			this.splines.get(pair[0])!.evaluate(input)
+		)
 	}
 
 	addNode() {
@@ -72,11 +75,16 @@ export class Brain {
 			const nuevoNodo = this.dag.add(sumAll)
 
 			// 5. Establecer nuevas conexiones
-			this.dag.connect(from, nuevoNodo)
-			this.dag.connect(nuevoNodo, to)
-		} catch (error) {
+			this.splines.set(from, new BSpline(10))
+			this.dag.connect(from, nuevoNodo, (input: number) => {
+				return this.splines.get(from)!.evaluate(input)
+			})
 
-		}
+			this.splines.set(nuevoNodo, new BSpline(10))
+			this.dag.connect(nuevoNodo, to, (input: number) => {
+				return this.splines.get(nuevoNodo)!.evaluate(input)
+			})
+		} catch (error) {}
 	}
 
 	forward(inputs: number[]) {
@@ -85,6 +93,16 @@ export class Brain {
 	}
 
 	mutate() {
+		const probabilty = Math.floor(Math.random() * 4)
+		if (probabilty === 0) this.addNode()
+		if (probabilty === 1) this.addEdge()
+		if (probabilty === 2) {
+			this.splines.forEach((s) => {
+				if (Math.random() < 0.2) {
+					s.mutate()
+				}
+			})
+		}
 	}
 
 	clone() {
@@ -94,10 +112,8 @@ export class Brain {
 }
 
 function sumAll(inputs: number[]) {
-	// const sum = inputs.reduce((prev, current) => prev + current, 0)
-	// const m = max(inputs)
-	// return sum / m
-	return inputs.reduce((prev, current) => prev + current, 0)
+	const sum = inputs.reduce((prev, current) => prev + current, 0)
+	return sum / inputs.length
 }
 function inputfn(inputs: number[]) {
 	return inputs[0]

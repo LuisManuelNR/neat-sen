@@ -1,33 +1,48 @@
 <script lang="ts">
 	import { Genome } from '$lib/NEAT/Simulator'
+	import { linspace } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
 	import { randomNumber, linearScale } from '@chasi/ui/utils'
 
-	const dataset = Array.from({ length: 30 }, (v, i) => [i, i + 1])
-	const realY = dataset.map((n) => realFunction(n))
+	const realX = Array.from({ length: 20 }, () => Math.random())
+	const realY = realX.map((n) => realFunction(n))
 
-	function realFunction(xs: number[]) {
-		// return xs[0] * xs[1]
-		return Math.atan2(xs[0], xs[1])
+	function realFunction(x: number) {
+		return Math.pow(x, 2)
 	}
 	class Agent extends Genome {
 		constructor() {
-			super(2, 1)
+			super(1, 1)
+			this.brain.forward([0.1]).then((r) => {
+				console.log('Output:', r)
+			})
+			this.brain.forward([0.2]).then((r) => {
+				console.log('Output:', r)
+			})
+			this.brain.forward([0.3]).then((r) => {
+				console.log('Output:', r)
+			})
 		}
 
-		train() {
-			this.inputs = [Math.random(), Math.random()]
-			this.outputs = this.brain.forward(this.inputs)
+		async train() {
+			this.inputs = [Math.random()]
+			this.outputs = await this.brain.forward(this.inputs)
 
-			const real = realFunction(this.inputs)
+			const real = realFunction(this.inputs[0])
 			const error = Math.abs(this.outputs[0] - real)
 			this.fitness += 1 / (1 + error)
 		}
 
 		evaluate() {
-			return dataset.map((n) => this.brain.forward(n)[0])
-			// return dataset.map((n) => realFunction(n))
+			// return Promise.all(
+			// 	realX.map(async (n) => {
+			// 		// console.log('Input:', n)
+			// 		const r = await this.brain.forward([n])
+			// 		// console.log('Output:', r)
+			// 		return r[0]
+			// 	})
+			// )
 		}
 	}
 
@@ -40,7 +55,9 @@
 	<div class="d-grid gap-4">
 		<div>
 			<p>output</p>
-			<LineChart y={best.evaluate()} height={400}></LineChart>
+			<!-- {#await best.evaluate() then ys}
+				<LineChart y={ys} height={400}></LineChart>
+			{/await} -->
 		</div>
 		<div>
 			<p>target</p>

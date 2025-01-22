@@ -5,37 +5,19 @@
 <script lang="ts">
 	import type { BSpline } from '$lib/KAN/BSpline'
 	import { linspace } from '$lib/utils'
-	import { CGraph, CPath, CAxisX, CAxisY } from '@chasi/ui/graph'
+	import { CPath, CRect } from '@chasi/ui/graph'
 
 	export let spline: BSpline
 	export let width = 50
 	export let height = 50
-	export let helpers = false
+	export let x = 0
+	export let y = 0
 
-	const margin = helpers ? 40 : 0
-	$: x = linspace([0, 1], 100)
-	$: y = x.map((v) => spline.evaluate(v))
+	$: px = linspace([0, 1], 100)
+	$: py = px.map((v) => spline.evaluate(v))
 </script>
 
-<div class="spline" style:width="{width}px">
-	<CGraph
-		{height}
-		marginBottom={margin}
-		marginLeft={margin}
-		marginRight={margin}
-		marginTop={margin}
-	>
-		<CPath domainX={domain} domainY={domain} {x} {y} color="var(--brand)"></CPath>
-		{#if helpers}
-			<CAxisX {domain} ticksNumber={5}></CAxisX>
-			<CAxisY {domain} ticksNumber={5}></CAxisY>
-		{/if}
-	</CGraph>
-</div>
-
-<style>
-	.spline {
-		outline: 1px solid var(--s-1);
-		border-radius: 5px;
-	}
-</style>
+<g transform="translate({x}, {y})">
+	<!-- <CPath domainX={domain} domainY={domain} x={px} y={py} color="var(--brand)"></CPath> -->
+	<CRect {width} {height} strokeColor="var(--s-1)" strokeWidth="1"></CRect>
+</g>

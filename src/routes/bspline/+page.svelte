@@ -6,7 +6,7 @@
 	import { linspace } from '$lib/utils'
 	import { CAxisX, CAxisY, CGraph, CPath } from '@chasi/ui/graph'
 
-	let spline = new BSpline([1, 0, 0, 1], 2)
+	let spline = new BSpline([1, 0, 0, 1], 1)
 
 	let stop: (() => void) | undefined
 
