@@ -5,8 +5,12 @@
 	import Spline from '$lib/Viz/Spline.svelte'
 	import { linspace } from '$lib/utils'
 	import { CAxisX, CAxisY, CGraph, CPath } from '@chasi/ui/graph'
+	import LineChart from '$lib/Viz/LineChart.svelte'
 
-	let spline = new BSpline([1, 0, 0, 1], 1)
+	const DOMAIN = [-1, 1] as [number, number]
+	let spline = new BSpline(linspace(DOMAIN, 10), 3)
+	const x = linspace(DOMAIN, 1000)
+	const y = x.map((v) => spline.evaluate(v))
 
 	let stop: (() => void) | undefined
 
@@ -31,7 +35,9 @@
 			</CLabel>
 		</div>
 
-		<Spline {spline} width={500} height={500} helpers></Spline>
+		<LineChart domainX={DOMAIN} domainY={DOMAIN} height={500}>
+			<CPath domainX={DOMAIN} domainY={DOMAIN} {x} {y} color={randomColor()}></CPath>
+		</LineChart>
 	</div>
 	<div>
 		<!-- <p>Basis functions</p>

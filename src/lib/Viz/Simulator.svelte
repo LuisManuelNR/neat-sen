@@ -1,11 +1,6 @@
 <script lang="ts">
 	import { linspace } from '$lib/utils'
-	import {
-		Simulation,
-		type CreateFunction,
-		type FitnessSort,
-		type Genome
-	} from '$lib/NEAT/Simulator'
+	import { Simulation, type CreateFunction, type Genome } from '$lib/NEAT/Simulator'
 	import { runOnFrames } from '@chasi/ui/utils'
 	import { CLabel } from '@chasi/ui'
 	import { onMount } from 'svelte'
@@ -16,7 +11,6 @@
 	export let population: number
 	export let create: CreateFunction<T>
 	export let defaulEvolutionInterval = 200
-	export let fitnessSort: FitnessSort = 'max'
 
 	let evolutionInterval = defaulEvolutionInterval
 	let simulate = false
@@ -26,7 +20,7 @@
 	let globalFitness: number[] = []
 	$: genX = linspace([generations - globalFitness.length, generations], globalFitness.length)
 
-	const simulation = new Simulation(population, create, fitnessSort)
+	const simulation = new Simulation(population, create)
 
 	let genFitness = 0
 	function update() {

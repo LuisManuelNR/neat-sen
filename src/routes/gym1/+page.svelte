@@ -1,48 +1,30 @@
 <script lang="ts">
 	import { Genome } from '$lib/NEAT/Simulator'
-	import { linspace } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
-	import { randomNumber, linearScale } from '@chasi/ui/utils'
 
-	const realX = Array.from({ length: 20 }, () => Math.random())
+	const realX = Array.from({ length: 20 }, (v, i) => i)
 	const realY = realX.map((n) => realFunction(n))
 
 	function realFunction(x: number) {
-		return Math.pow(x, 2)
+		return Math.pow(x, 2) * Math.sin(x * 0.2)
 	}
 	class Agent extends Genome {
 		constructor() {
-			super(1, 1)
-			this.brain.forward([0.1]).then((r) => {
-				console.log('Output:', r)
-			})
-			this.brain.forward([0.2]).then((r) => {
-				console.log('Output:', r)
-			})
-			this.brain.forward([0.3]).then((r) => {
-				console.log('Output:', r)
-			})
+			super(1, 2, 1)
 		}
 
-		async train() {
-			this.inputs = [Math.random()]
-			this.outputs = await this.brain.forward(this.inputs)
+		train() {
+			const inputs = [Math.random()]
+			const outputs = this.brain.forward(inputs)
 
-			const real = realFunction(this.inputs[0])
-			const error = Math.abs(this.outputs[0] - real)
+			const real = realFunction(inputs[0])
+			const error = Math.abs(outputs[0] - real)
 			this.fitness += 1 / (1 + error)
 		}
 
 		evaluate() {
-			// return Promise.all(
-			// 	realX.map(async (n) => {
-			// 		// console.log('Input:', n)
-			// 		const r = await this.brain.forward([n])
-			// 		// console.log('Output:', r)
-			// 		return r[0]
-			// 	})
-			// )
+			return realX.map((n) => this.brain.forward([n])[0])
 		}
 	}
 
@@ -51,13 +33,11 @@
 	}
 </script>
 
-<Simulator let:best population={1} {create} defaulEvolutionInterval={100}>
+<Simulator let:best population={50} {create} defaulEvolutionInterval={10}>
 	<div class="d-grid gap-4">
 		<div>
 			<p>output</p>
-			<!-- {#await best.evaluate() then ys}
-				<LineChart y={ys} height={400}></LineChart>
-			{/await} -->
+			<LineChart y={best.evaluate()} height={400}></LineChart>
 		</div>
 		<div>
 			<p>target</p>

@@ -34,6 +34,10 @@
 		network.addNode()
 		network = network
 	}
+	function removeNode() {
+		network.removeNode()
+		network = network
+	}
 	function addConnection() {
 		network.addEdge()
 		network = network
@@ -44,6 +48,7 @@
 	<div class="card d-grid gap-4">
 		<button class="btn" on:click={handleForward}> forward </button>
 		<button class="btn" on:click={addNode}> add node </button>
+		<button class="btn" on:click={removeNode}> remove node </button>
 		<button class="btn" on:click={addConnection}> add connection </button>
 		<button class="btn" on:click={randomizeNetwork}> randomize </button>
 		{#if stopmutation}

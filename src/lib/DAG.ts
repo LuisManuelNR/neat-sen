@@ -14,6 +14,32 @@ export class DAG {
 		return this.#id
 	}
 
+	remove(nodeId: number) {
+		// Verifica si el nodo existe
+		if (!this.nodes.has(nodeId)) {
+			throw new Error(`Node ${nodeId} does not exist`)
+		}
+
+		// Elimina todas las conexiones entrantes al nodo
+		for (const [from, connections] of this.connections) {
+			if (connections.has(nodeId)) {
+				connections.delete(nodeId)
+				const fromUnit = this.nodes.get(from)
+				const toUnit = this.nodes.get(nodeId)
+				fromUnit?.disconnect(toUnit!)
+			}
+		}
+
+		// Elimina todas las conexiones salientes desde el nodo
+		this.connections.delete(nodeId)
+
+		// Elimina el nodo de la lista de nodos
+		this.nodes.delete(nodeId)
+
+		// Reordena el DAG
+		this.sort()
+	}
+
 	connect(from: number, to: number, fn?: ConnectionTransform) {
 		const fromUnit = this.nodes.get(from)
 		if (!fromUnit) throw new Error(`Unit ${from} must be added before connect`)
@@ -37,22 +63,35 @@ export class DAG {
 	}
 
 	async process(inputs: any[]) {
-		let batchResult = inputs
+		const processid = crypto.randomUUID()
+		let outputs = inputs
+
+
+		for (const [id, node] of this.nodes) {
+			node.value.set(processid, [])
+		}
+
+		this.#sorted[0].forEach(id => {
+			const node = this.nodes.get(id)!
+			node.value.set(processid, [outputs[id]])
+		})
 
 		for (const batch of this.#sorted) {
 			const promises: Promise<void>[] = []
 
 			batch.forEach((id) => {
 				const node = this.nodes.get(id)!
-				promises.push(async () => {
-					const r = await node.process(batchResult[id])
-				})
+				promises.push(node.process(processid))
 			})
 
-			batchResult = await Promise.all(promises)
+			outputs = await Promise.all(promises)
 		}
 
-		return batchResult
+		for (const [id, node] of this.nodes) {
+			node.value.delete(processid)
+		}
+
+		return outputs
 	}
 
 	sort() {
@@ -77,6 +116,7 @@ export class DAGUnit {
 	#dependeants: Set<DAGUnit> = new Set()
 	#connectionTranforms: Map<DAGUnit, ConnectionTransform> = new Map()
 	evaluate: Evaluate
+	value: Map<string, any[]> = new Map()
 
 	constructor(evaluate: Evaluate) {
 		this.evaluate = evaluate
@@ -93,12 +133,13 @@ export class DAGUnit {
 		this.#dependeants.delete(to)
 	}
 
-	async process(inputs: any[]) {
-		let result = await this.evaluate(inputs)
+	async process(id: string) {
+		let result = await this.evaluate(this.value.get(id))
 
 		this.#dependeants.forEach((unit) => {
 			if (this.#connectionTranforms.has(unit)) {
-				result = this.#connectionTranforms.get(unit)!(result)
+				const tresult = this.#connectionTranforms.get(unit)!(result)
+				unit.value.get(id)?.push(tresult)
 			}
 		})
 

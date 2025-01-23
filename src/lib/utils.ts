@@ -78,6 +78,21 @@ export function probably(rate: number) {
 	return Math.random() < rate
 }
 
+export function tanhAct(x: number, getDerivative: boolean = false): number {
+	if (!getDerivative) {
+		return Math.tanh(x)
+	}
+	return 1 - Math.tanh(x) ** 2
+}
+
+export function sigmoidAct(x: number, getDerivative: boolean = false): number {
+	if (!getDerivative) {
+		return 1 / (1 + Math.exp(-x))
+	}
+	const sigmoid = sigmoidAct(x, false) // Calcula el valor del sigmoide
+	return sigmoid * (1 - sigmoid)
+}
+
 export class Vec2D {
 	x: number
 	y: number

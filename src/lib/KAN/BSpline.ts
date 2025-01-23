@@ -2,66 +2,62 @@ import { clamp, linspace, randomGaussian } from '$lib/utils'
 
 export class BSpline {
 	points: number[]
+	#extendedPoints: number[]
 	degree
 
-	constructor(points: number[] | number, degree = 1) {
+	constructor(points: number[] | number, degree = 3) {
 		this.points = Array.isArray(points)
 			? points
 			: Array(points)
-					.fill(0)
-					.map(() => Math.random())
+				.fill(0)
+				.map(() => Math.random())
 
 		this.degree = degree
+		this.#extendedPoints = this.#extendGrid(this.points, this.degree)
+		console.log(this.points)
+		console.log(this.#extendedPoints)
 	}
 
 	plot(resolution = 100) {
-		const x = linspace([0, 1], resolution)
+		const x = linspace([this.points[0], this.points.at(-1)!], resolution)
 		const y = x.map((v) => this.evaluate(v))
 		return { x, y }
 	}
 
 	evaluate(x: number): number {
-		const n = this.points.length - 1
-		const index = Math.min(Math.floor(x * n), n - 1)
-		const t = x * n - index
+		return this.basisFunction(x, this.#extendedPoints, this.degree)
+	}
 
-		// Evaluación basada en el grado de la spline.
-		switch (this.degree) {
-			case 1: // Spline lineal
-				return this.linearInterpolation(index, t)
-			case 2: // Spline cuadrática
-				return this.quadraticInterpolation(index, t)
-			case 3: // Spline cúbica
-				return this.cubicInterpolation(index, t)
-			default:
-				throw new Error(`Spline degree ${this.degree} not supported.`)
+	private basisFunction(x: number, grid: number[], degree: number): number {
+		if (degree === 0) {
+			// Base case: step function
+			for (let i = 0; i < grid.length - 1; i++) {
+				if (x >= grid[i] && x < grid[i + 1]) return 1
+			}
+			return 0
 		}
+
+		// Recursive case
+		let result = 0
+		for (let i = 0; i < grid.length - degree - 1; i++) {
+			const denom1 = grid[i + degree] - grid[i]
+			const denom2 = grid[i + degree + 1] - grid[i + 1]
+
+			const coeff1 = denom1 > 0 ? (x - grid[i]) / denom1 : 0
+			const coeff2 = denom2 > 0 ? (grid[i + degree + 1] - x) / denom2 : 0
+
+			result += coeff1 * this.basisFunction(x, grid.slice(i, i + degree + 1), degree - 1)
+			result += coeff2 * this.basisFunction(x, grid.slice(i + 1, i + degree + 2), degree - 1)
+		}
+		return result
 	}
 
-	private linearInterpolation(index: number, t: number): number {
-		const y1 = this.points[index]
-		const y2 = this.points[index + 1]
-		return (1 - t) * y1 + t * y2
-	}
-
-	private quadraticInterpolation(index: number, t: number): number {
-		const p0 = this.points[Math.max(0, index - 1)]
-		const p1 = this.points[index]
-		const p2 = this.points[Math.min(this.points.length - 1, index + 1)]
-		return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2
-	}
-
-	private cubicInterpolation(index: number, t: number): number {
-		const p0 = this.points[Math.max(0, index - 1)]
-		const p1 = this.points[index]
-		const p2 = this.points[Math.min(this.points.length - 1, index + 1)]
-		const p3 = this.points[Math.min(this.points.length - 1, index + 2)]
-		return (
-			(-0.5 * p0 + 1.5 * p1 - 1.5 * p2 + 0.5 * p3) * t * t * t +
-			(p0 - 2.5 * p1 + 2 * p2 - 0.5 * p3) * t * t +
-			(-0.5 * p0 + 0.5 * p2) * t +
-			p1
-		)
+	#extendGrid(grid: number[], degree: number): number[] {
+		const bucketSize = (grid.at(-1)! - grid[0]) / (grid.length - 1)
+		for (let i = 0; i < degree; i++) {
+			grid = [grid[0] - bucketSize, ...grid, grid.at(-1)! + bucketSize]
+		}
+		return grid
 	}
 
 	// Mutación de los puntos de control

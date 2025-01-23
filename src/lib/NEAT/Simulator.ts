@@ -4,34 +4,26 @@ import { Brain } from '$lib/KAN/Brain'
 export class Genome {
 	brain: Brain
 	fitness = 0
-	inputs: number[]
-	outputs: number[]
-	constructor(inputs: number, outputs: number) {
-		this.brain = new Brain(inputs, outputs)
-		this.inputs = new Array(inputs).fill(0)
-		this.outputs = new Array(outputs).fill(0)
+	constructor(...args: number[]) {
+		this.brain = new Brain(...args)
 	}
 
-	async train() {}
+	train() { }
 
-	async predict() {}
+	predict() { }
 }
 
 export type CreateFunction<T> = () => T
-
-export type FitnessSort = 'max' | 'min'
 export class Simulation<T extends Genome> {
 	population: T[]
 	#populationSize: number
 	#generation: number = 0
 	#create: CreateFunction<T>
-	#fitnessSort: FitnessSort
 
-	constructor(populationSize: number, create: CreateFunction<T>, fitnessSort?: FitnessSort) {
+	constructor(populationSize: number, create: CreateFunction<T>) {
 		this.#populationSize = populationSize
 		this.population = []
 		this.#create = create
-		this.#fitnessSort = fitnessSort || 'max'
 
 		// Inicialización de la población
 		for (let i = 0; i < this.#populationSize; i++) {
@@ -52,11 +44,7 @@ export class Simulation<T extends Genome> {
 	}
 
 	#selection() {
-		if (this.#fitnessSort === 'max') {
-			this.population.sort((a, b) => b.fitness - a.fitness)
-		} else {
-			this.population.sort((a, b) => a.fitness - b.fitness)
-		}
+		this.population.sort((a, b) => b.fitness - a.fitness)
 
 		// nos quedamos con la mitad
 		const half = this.population.slice(0, Math.round(this.#populationSize / 2))
