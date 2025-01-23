@@ -42,6 +42,14 @@
 		network.addEdge()
 		network = network
 	}
+	function logSorted() {
+		console.log(network.dag.sorted)
+		const emptyConnections = []
+		for (const [id, deps] of network.dag.connections) {
+			if (deps.size === 0) emptyConnections.push(id)
+		}
+		console.log(emptyConnections)
+	}
 </script>
 
 <div class="viz d-grid gap-4">
@@ -51,6 +59,7 @@
 		<button class="btn" on:click={removeNode}> remove node </button>
 		<button class="btn" on:click={addConnection}> add connection </button>
 		<button class="btn" on:click={randomizeNetwork}> randomize </button>
+		<button class="btn" on:click={logSorted}> log sorted </button>
 		{#if stopmutation}
 			<button class="btn error" on:click={hanldeStop}> stop mutation </button>
 		{:else}

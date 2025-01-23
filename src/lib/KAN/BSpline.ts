@@ -2,69 +2,67 @@ import { clamp, linspace, randomGaussian } from '$lib/utils'
 
 export class BSpline {
 	points: number[]
-	#extendedPoints: number[]
+	knots: number[]
 	degree
 
 	constructor(points: number[] | number, degree = 3) {
 		this.points = Array.isArray(points)
 			? points
 			: Array(points)
-				.fill(0)
-				.map(() => Math.random())
+					.fill(0)
+					.map(() => Math.random())
 
 		this.degree = degree
-		this.#extendedPoints = this.#extendGrid(this.points, this.degree)
-		console.log(this.points)
-		console.log(this.#extendedPoints)
+		this.knots = Array.from({ length: this.points.length + degree + 1 }, (_, i) => i)
 	}
 
 	plot(resolution = 100) {
-		const x = linspace([this.points[0], this.points.at(-1)!], resolution)
+		const x = linspace(this.points[0], this.points.at(-1)!, resolution)
 		const y = x.map((v) => this.evaluate(v))
 		return { x, y }
 	}
 
 	evaluate(x: number): number {
-		return this.basisFunction(x, this.#extendedPoints, this.degree)
-	}
+		const degree = this.degree
+		const knots = this.knots
 
-	private basisFunction(x: number, grid: number[], degree: number): number {
-		if (degree === 0) {
-			// Base case: step function
-			for (let i = 0; i < grid.length - 1; i++) {
-				if (x >= grid[i] && x < grid[i + 1]) return 1
+		// Remap `x` to the domain where the spline is defined
+		const domain = [degree, knots.length - degree - 1]
+		const low = knots[domain[0]]
+		const high = knots[domain[1]]
+		x = x * (high - low) + low
+
+		if (x < low || x > high) throw new Error(`x is out of bounds, x=${x}, [${low}, ${high}]`)
+
+		// Find the segment `s` for the `x` value
+		let s = domain[0]
+		for (; s < domain[1]; s++) {
+			if (x >= knots[s] && x <= knots[s + 1]) {
+				break
 			}
-			return 0
 		}
 
-		// Recursive case
-		let result = 0
-		for (let i = 0; i < grid.length - degree - 1; i++) {
-			const denom1 = grid[i + degree] - grid[i]
-			const denom2 = grid[i + degree + 1] - grid[i + 1]
+		// Convert points to "homogeneous coordinates" (in this case, weights are 1)
+		let v = this.points.map((p) => [p, 1])
 
-			const coeff1 = denom1 > 0 ? (x - grid[i]) / denom1 : 0
-			const coeff2 = denom2 > 0 ? (grid[i + degree + 1] - x) / denom2 : 0
-
-			result += coeff1 * this.basisFunction(x, grid.slice(i, i + degree + 1), degree - 1)
-			result += coeff2 * this.basisFunction(x, grid.slice(i + 1, i + degree + 2), degree - 1)
+		// Perform De Boor's algorithm
+		for (let l = 1; l <= degree + 1; l++) {
+			for (let i = s; i > s - degree - 1 + l; i--) {
+				const alpha = (x - knots[i]) / (knots[i + degree + 1 - l] - knots[i])
+				v[i][0] = (1 - alpha) * v[i - 1][0] + alpha * v[i][0] // Interpolate value
+				v[i][1] = (1 - alpha) * v[i - 1][1] + alpha * v[i][1] // Interpolate weight
+			}
 		}
-		return result
-	}
 
-	#extendGrid(grid: number[], degree: number): number[] {
-		const bucketSize = (grid.at(-1)! - grid[0]) / (grid.length - 1)
-		for (let i = 0; i < degree; i++) {
-			grid = [grid[0] - bucketSize, ...grid, grid.at(-1)! + bucketSize]
-		}
-		return grid
+		// Convert back to Cartesian by dividing by the weight
+		return v[s][0] / v[s][1]
 	}
 
 	// Mutación de los puntos de control
-	mutate(): void {
+	mutate() {
 		this.points = this.points.map((c) => {
 			if (Math.random() > 0.1) {
-				c += randomGaussian(0, 0.1)
+				c += randomGaussian(0, 0.01)
 				c = clamp(c, 0, 1)
 			} else if (Math.random() < 0.03) {
 				c = Math.random()

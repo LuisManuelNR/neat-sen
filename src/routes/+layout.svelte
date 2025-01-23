@@ -6,6 +6,7 @@
 	const links = [
 		{ href: '/', text: 'Home' },
 		{ href: '/bspline', text: 'BSpline' },
+		{ href: '/DAG', text: 'dag' },
 		{ href: '/builder', text: 'Network Builder' },
 		{ href: '/gym1', text: 'Gym 1' },
 		{ href: '/gym2', text: 'Gym 2' },

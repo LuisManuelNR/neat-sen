@@ -7,10 +7,10 @@
 	import { CAxisX, CAxisY, CGraph, CPath } from '@chasi/ui/graph'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 
-	const DOMAIN = [-1, 1] as [number, number]
-	let spline = new BSpline(linspace(DOMAIN, 10), 3)
-	const x = linspace(DOMAIN, 1000)
-	const y = x.map((v) => spline.evaluate(v))
+	const DOMAIN = [0, 1] as [number, number]
+	let spline = new BSpline(linspace(DOMAIN[0], DOMAIN[1], 10), 3)
+	const x = linspace(DOMAIN[0], DOMAIN[1], 1000)
+	$: y = x.map((v) => spline.evaluate(v))
 
 	let stop: (() => void) | undefined
 
@@ -35,9 +35,7 @@
 			</CLabel>
 		</div>
 
-		<LineChart domainX={DOMAIN} domainY={DOMAIN} height={500}>
-			<CPath domainX={DOMAIN} domainY={DOMAIN} {x} {y} color={randomColor()}></CPath>
-		</LineChart>
+		<LineChart charts={[y]} height={500}></LineChart>
 	</div>
 	<div>
 		<!-- <p>Basis functions</p>

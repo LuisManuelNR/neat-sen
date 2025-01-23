@@ -3,7 +3,7 @@ type ConnectionTransform = (...args: any) => any
 export class DAG {
 	nodes: Map<number, DAGUnit> = new Map()
 	connections: Map<number, Set<number>> = new Map()
-	#sorted: Set<number>[] = []
+	sorted: Set<number>[] = []
 	#id = -1
 
 	add(evaluate: Evaluate) {
@@ -41,6 +41,7 @@ export class DAG {
 	}
 
 	connect(from: number, to: number, fn?: ConnectionTransform) {
+		if (from === to) return
 		const fromUnit = this.nodes.get(from)
 		if (!fromUnit) throw new Error(`Unit ${from} must be added before connect`)
 		const toUnit = this.nodes.get(to)
@@ -52,6 +53,7 @@ export class DAG {
 	}
 
 	disconnect(from: number, to: number) {
+		if (from === to) return
 		const fromUnit = this.nodes.get(from)
 		if (!fromUnit) throw new Error(`Unit ${from} must be added before connect`)
 		const toUnit = this.nodes.get(to)
@@ -66,17 +68,16 @@ export class DAG {
 		const processid = crypto.randomUUID()
 		let outputs = inputs
 
-
 		for (const [id, node] of this.nodes) {
 			node.value.set(processid, [])
 		}
 
-		this.#sorted[0].forEach(id => {
+		this.sorted[0].forEach((id) => {
 			const node = this.nodes.get(id)!
 			node.value.set(processid, [outputs[id]])
 		})
 
-		for (const batch of this.#sorted) {
+		for (const batch of this.sorted) {
 			const promises: Promise<void>[] = []
 
 			batch.forEach((id) => {
@@ -96,13 +97,13 @@ export class DAG {
 
 	sort() {
 		//@ts-ignore
-		this.#sorted = toposort(this.connections)
-		return this.#sorted
+		this.sorted = toposort(this.connections)
+		return this.sorted
 	}
 
 	garph() {
 		const units: Array<{ from: number; to: number[] }[]> = []
-		this.#sorted.forEach((batch) => {
+		this.sorted.forEach((batch) => {
 			const layer: { from: number; to: number[] }[] = []
 			batch.forEach((unit) => {
 				layer.push({ from: unit, to: Array.from(this.connections.get(unit)!) })

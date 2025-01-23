@@ -4,13 +4,13 @@ import { Brain } from '$lib/KAN/Brain'
 export class Genome {
 	brain: Brain
 	fitness = 0
-	constructor(...args: number[]) {
-		this.brain = new Brain(...args)
+	constructor(input: number, output: number) {
+		this.brain = new Brain(input, output)
 	}
 
-	train() { }
+	async train() {}
 
-	predict() { }
+	predict() {}
 }
 
 export type CreateFunction<T> = () => T

@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { linspace } from '$lib/utils'
 	import { Simulation, type CreateFunction, type Genome } from '$lib/NEAT/Simulator'
-	import { runOnFrames } from '@chasi/ui/utils'
+	import { max, min, runOnFrames } from '@chasi/ui/utils'
 	import { CLabel } from '@chasi/ui'
 	import { onMount } from 'svelte'
 	import Network from '$lib/Viz/Network.svelte'
@@ -11,21 +10,22 @@
 	export let population: number
 	export let create: CreateFunction<T>
 	export let defaulEvolutionInterval = 200
+	export let onNewGen: (population: T[]) => void = () => {}
+	export let onUpdate: (population: T[]) => void = () => {}
 
 	let evolutionInterval = defaulEvolutionInterval
 	let simulate = false
-	let step = 0
+	let step = 1
 	let frames = 0
 	let generations = 0
 	let globalFitness: number[] = []
-	$: genX = linspace([generations - globalFitness.length, generations], globalFitness.length)
 
 	const simulation = new Simulation(population, create)
 
 	let genFitness = 0
 	function update() {
-		frames++
 		if (simulate) {
+			frames++
 			simulation.population.forEach((s, i) => {
 				s.train()
 				simulation.population[i] = simulation.population[i]
@@ -40,15 +40,20 @@
 					globalFitness.shift()
 					globalFitness = globalFitness
 				}
+				onNewGen(simulation.population)
 			}
+			onUpdate(simulation.population)
 		} else {
-			simulation.population[0].predict()
-			simulation.population[0] = simulation.population[0]
+			frames = 0
 		}
 	}
 
 	function stopSimulation() {
 		simulate = false
+	}
+	function startSimulation() {
+		frames = 0
+		simulate = true
 	}
 
 	onMount(() => {
@@ -64,7 +69,7 @@
 	{#if simulate}
 		<button class="btn error" on:click={stopSimulation}> pause </button>
 	{:else}
-		<button class="btn success" on:click={() => (simulate = true)}> evolve </button>
+		<button class="btn success" on:click={startSimulation}> evolve </button>
 	{/if}
 	<CLabel label="evolve intereval" class="s-6">
 		<input type="number" bind:value={evolutionInterval} />
@@ -80,7 +85,12 @@
 </div>
 
 <div class="metrics d-grid gap-4">
-	<LineChart x={genX} y={globalFitness} height={400}></LineChart>
+	<LineChart
+		domainX={[generations - globalFitness.length, generations]}
+		domainY={[min(globalFitness), max(globalFitness)]}
+		charts={[globalFitness]}
+		height={400}
+	></LineChart>
 	<Network network={simulation.population[0].brain}></Network>
 </div>
 
