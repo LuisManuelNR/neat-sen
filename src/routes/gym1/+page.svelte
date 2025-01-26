@@ -3,13 +3,16 @@
 	import { linspace } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
+	import { CLabel } from '@chasi/ui'
+	import { linearScale } from '@chasi/ui/utils'
 
 	const realX = linspace(0, 1, 100)
 	const realY = realX.map((n) => realFunction(n))
-	let predictedY: number[] = []
+	let predictedY: number[][] = []
 	function realFunction(x: number) {
-		// return Math.pow(x, 2) * Math.sin(x * 2)
-		return Math.pow(x, 2)
+		const v = Math.sqrt(Math.pow(x, 2) * Math.sin(x * 3))
+		return linearScale(v, 0, 1, 0.4, 0.8)
+		// return Math.pow(x, 2)
 	}
 	class Agent extends Genome {
 		constructor() {
@@ -38,23 +41,33 @@
 	function create() {
 		return new Agent()
 	}
+	let showAll = false
 	async function onNewGen(population: Agent[]) {
-		predictedY = await population[0].evaluate()
+		if (showAll) {
+			predictedY = await Promise.all(population.map((p) => p.evaluate()))
+		} else {
+			predictedY = [await population[0].evaluate()]
+		}
 	}
-	async function onUpdate(population: Agent[]) {
-		predictedY = await population[0].evaluate()
-	}
+	// async function onUpdate(population: Agent[]) {
+	// 	predictedY = await population[0].evaluate()
+	// }
 </script>
 
-<Simulator population={1} {create} defaulEvolutionInterval={10} {onNewGen}>
+<Simulator population={50} {create} defaulEvolutionInterval={10} {onNewGen}>
 	<div class="d-grid gap-4">
 		<div>
 			<p>target</p>
 			<LineChart charts={[realY]} height={400}></LineChart>
 		</div>
 		<div>
-			<p>output</p>
-			<LineChart charts={[predictedY]} height={400}></LineChart>
+			<div class="d-flex align-center gap-2">
+				<p>output</p>
+				<CLabel label="show all">
+					<input type="checkbox" on:change={() => (showAll = !showAll)} />
+				</CLabel>
+			</div>
+			<LineChart charts={predictedY} height={400}></LineChart>
 		</div>
 	</div>
 </Simulator>

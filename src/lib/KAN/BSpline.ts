@@ -5,7 +5,7 @@ export class BSpline {
 	knots: number[]
 	degree
 
-	constructor(points: number[] | number, degree = 3) {
+	constructor(points: number[] | number, degree = 2) {
 		this.points = Array.isArray(points)
 			? points
 			: Array(points)

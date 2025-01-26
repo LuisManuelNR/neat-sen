@@ -8,7 +8,11 @@
 	import LineChart from '$lib/Viz/LineChart.svelte'
 
 	const DOMAIN = [0, 1] as [number, number]
-	let spline = new BSpline(linspace(DOMAIN[0], DOMAIN[1], 10), 3)
+	const points = linspace(DOMAIN[0], DOMAIN[1], 10)
+	let spline = new BSpline(
+		points.map((p) => Math.pow(p, 2)),
+		3
+	)
 	const x = linspace(DOMAIN[0], DOMAIN[1], 1000)
 	$: y = x.map((v) => spline.evaluate(v))
 

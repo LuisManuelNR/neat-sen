@@ -1,144 +1,192 @@
 import { DAG } from '$lib/DAG'
 import { BSpline } from './BSpline'
 
+type BrainDag = {
+	nodes: {
+		input: (xs: number[]) => number
+		hidden: (inputs: number[]) => number
+		output: (inputs: number[]) => number
+	}
+	connections: {
+		identity: (x: number) => number
+		spline: (x: number, connid: any) => number
+	}
+}
 export class Brain {
 	#inputSize: number
 	#outputSize: number
-	splines: Map<number, BSpline> = new Map()
-	dag: DAG
+	splines: Map<string, BSpline> = new Map()
+	dag: DAG<BrainDag>
 
 	constructor(inputSize: number, outputSize: number) {
 		this.#inputSize = inputSize
 		this.#outputSize = outputSize
-		this.dag = new DAG()
+		this.dag = new DAG({
+			nodes: {
+				input: (xs) => xs[0],
+				hidden: sumAll,
+				output: sumAll
+			},
+			connections: {
+				identity: (x) => x,
+				spline: (x, connid) => {
+					return this.splines.get(connid)!.evaluate(x)
+				}
+			}
+		})
 
 		const inputsIds = []
 		for (let i = 0; i < inputSize; i++) {
-			const id = this.dag.add(inputfn)
+			const id = this.dag.addNode('input')
 			inputsIds.push(id)
 		}
 
 		for (let i = 0; i < outputSize; i++) {
-			const oid = this.dag.add(sumAll)
+			const oid = this.dag.addNode('output')
 			inputsIds.forEach((id) => {
 				this.#connectWithSpline(id, oid)
 			})
 		}
 	}
 
-	#connectWithSpline(from: number, to: number) {
-		this.splines.set(from, new BSpline(10))
-		this.dag.connect(from, to, (input: number) => this.splines.get(from)!.evaluate(input))
+	#connectWithSpline(from: string, to: string) {
+		this.splines.set(`${from}_${to}`, new BSpline(5, 2))
+		this.dag.connect('spline', from, to)
 	}
 
 	addEdge() {
-		const sorted = this.dag.sort()
-		if (!sorted) return
-
-		const available: number[][] = []
-		const prevBatch: number[] = []
+		const sorted = this.dag.sorted
+		const available: string[][] = []
+		const prevBatch: string[] = []
 		for (let i = 1; i < sorted.length; i++) {
 			const batch = sorted[i]
 			prevBatch.push(...sorted[i - 1])
-			batch.forEach((nodeid) => {
-				prevBatch.forEach((n) => {
-					const node = this.dag.connections.get(n)!
-					if (!node.has(nodeid)) {
-						available.push([n, nodeid])
+			batch.forEach((to) => {
+				prevBatch.forEach((from) => {
+					if (!this.dag.connections.has(`${from}_${to}`)!) {
+						available.push([from, to])
 					}
 				})
 			})
 		}
 		if (available.length === 0) return
-		const pair = available[Math.floor(Math.random() * available.length)]
-		this.#connectWithSpline(pair[0], pair[1])
+		const [from, to] = randomElement(available)
+		this.#connectWithSpline(from, to)
 	}
 
-	// removeEdge() {
-	// 	const maxConn = this.dag.connections.size
-	// }
+	removeEdge() {
+		if (this.dag.connections.size < this.dag.nodes.size) return
+		const candidates: [string, string][] = []
+		for (const [from, deps] of this.dag.graph) {
+			if (deps.size > 1) {
+				deps.forEach((to) => {
+					let iter = 0
+					for (const [from2, deps2] of this.dag.graph) {
+						if (from2 !== from && deps2.has(to)) iter++
+						if (iter > 2) {
+							candidates.push([from, to])
+							return
+						}
+					}
+				})
+			}
+		}
+		if (!candidates.length) return
+		const [from, to] = randomElement(candidates)
+		this.#disconnect(from, to)
+	}
 
 	addNode() {
-		try {
-			// 1. Filtrar las conexiones existentes
-			const conexiones: Array<[number, number]> = []
-			this.dag.connections.forEach((destinos, from) => {
-				destinos.forEach((to) => {
-					conexiones.push([from, to])
-				})
-			})
+		// 1. Filtrar las conexiones existentes
+		const conexiones: Array<[string, string]> = []
+		for (const [key] of this.dag.connections) {
+			const [from, to] = key.split('_')
+			conexiones.push([from, to])
+		}
 
-			if (conexiones.length === 0) return
+		if (conexiones.length === 0) return
 
-			// 2. Seleccionar una conexión aleatoria
-			const [[from, to]] = randomElement(conexiones)
+		// 2. Seleccionar una conexión aleatoria
+		const [from, to] = randomElement(conexiones)
 
-			// 3. Desconectar la conexión seleccionada
-			this.dag.disconnect(from, to)
+		// 3. Desconectar la conexión seleccionada
+		this.#disconnect(from, to)
 
-			// 4. Crear un nuevo nodo
-			const nuevoNodo = this.dag.add(sumAll)
+		// 4. Crear un nuevo nodo
+		const nuevoNodo = this.dag.addNode('hidden')
 
-			// 5. Establecer nuevas conexiones
-			this.splines.set(from, new BSpline(10))
-			this.dag.connect(from, nuevoNodo, (input: number) => {
-				return this.splines.get(from)!.evaluate(input)
-			})
-
-			this.splines.set(nuevoNodo, new BSpline(10))
-			this.dag.connect(nuevoNodo, to, (input: number) => {
-				return this.splines.get(nuevoNodo)!.evaluate(input)
-			})
-		} catch (error) {}
+		// 5. Establecer nuevas conexiones
+		this.#connectWithSpline(from, nuevoNodo)
+		this.#connectWithSpline(nuevoNodo, to)
 	}
 
-	// removeNode() {
-	// 	if (this.dag.nodes.size === this.#inputSize + this.#outputSize) return
+	removeNode() {
+		if (this.dag.nodes.size === this.#inputSize + this.#outputSize) return
+		const hiddens: string[] = []
+		for (const [id, type] of this.dag.nodes) {
+			if (type === 'hidden') hiddens.push(id)
+		}
+		const rNodeId = randomElement(hiddens)
 
-	// 	const [rNodeId, index] = randomElement(this.hiddenIds)
-	// 	const sorted = this.dag.remove(rNodeId)
-	// 	this.hiddenIds.splice(index, 1)
-	// 	this.splines.delete(rNodeId)
+		const incommingConnections = []
+		for (const [from, deps] of this.dag.graph) {
+			if (deps.has(rNodeId)) incommingConnections.push(from)
+		}
+		const outgoingConnections = [...this.dag.graph.get(rNodeId)!]
 
-	// 	const emptyConnections = []
-	// 	for (const [id, deps] of this.dag.connections) {
-	// 		if (this.outputsIds.indexOf(id) !== -1) continue
-	// 		if (deps.size === 0) emptyConnections.push(id)
-	// 	}
-	// 	if (!emptyConnections.length) return
-	// 	console.log(sorted)
-	// 	emptyConnections.forEach((id) => {
-	// 		let aviableToNodes = this.hiddenIds.filter((v) => v > id)
-	// 		if (!aviableToNodes.length) aviableToNodes = this.outputsIds
-	// 		const [to] = randomElement(aviableToNodes)
-	// 		this.splines.set(id, new BSpline(10))
-	// 		console.log('connect', id, to)
-	// 		this.dag.connect(id, to, (input: number) => {
-	// 			return this.splines.get(id)!.evaluate(input)
-	// 		})
-	// 	})
-	// }
+		incommingConnections.forEach((input) => {
+			outgoingConnections.forEach((output) => {
+				if (!this.dag.graph.get(input)!.has(output)) {
+					this.#connectWithSpline(input, output)
+				}
+			})
+		})
 
-	forward(inputs: number[]) {
+		this.dag.removeNode(rNodeId)
+		for (const [connid] of this.splines) {
+			if (connid.includes(rNodeId)) this.splines.delete(connid)
+		}
+	}
+
+	#disconnect(from: string, to: string) {
+		this.dag.disconnect(from, to)
+		this.splines.delete(`${from}_${to}`)
+	}
+
+	async forward(inputs: number[]) {
 		if (inputs.length !== this.#inputSize) throw new Error('Inputs length must match')
-		return this.dag.process(inputs)
+		const pr = await this.dag.process(inputs)
+		const r: number[] = []
+		for (const [id, { type, value }] of pr) {
+			if (type === 'output') {
+				r.push(value)
+			}
+		}
+		return r
 	}
 
 	mutate() {
-		if (Math.random() < 0.8) {
+		if (Math.random() < 0.9) {
 			this.splines.forEach((s) => s.mutate())
+		} else {
+			const probabilty = Math.floor(Math.random() * 5)
+			if (probabilty === 0) this.addNode()
+			if (probabilty === 1) this.addEdge()
+			if (probabilty === 2) this.removeNode()
+			if (probabilty === 3) this.removeEdge()
 		}
-		// if (Math.random() < 0.01) {
-		// 	const probabilty = Math.floor(Math.random() * 3)
-		// 	if (probabilty === 0) this.addNode()
-		// 	if (probabilty === 1) this.addEdge()
+		// if (this.splines.size !== this.dag.connections.size) {
+		// 	console.log('leak splines', this.splines.size, this.dag.connections.size)
 		// }
 	}
 
 	clone() {
 		const clone = new Brain(this.#inputSize, this.#outputSize)
-		clone.dag = this.dag
-		clone.splines = this.splines
+		clone.dag = this.dag.clone(clone.dag.store)
+		clone.splines.clear()
+		for (const [id, spline] of this.splines) {
+			clone.splines.set(id, spline.clone())
+		}
 		return clone
 	}
 }
@@ -147,10 +195,7 @@ function sumAll(inputs: number[]) {
 	const sum = inputs.reduce((prev, current) => prev + current, 0)
 	return sum / inputs.length
 }
-function inputfn(inputs: number[]) {
-	return inputs[0]
-}
-function randomElement<T>(arr: T[]): [T, number] {
+function randomElement<T>(arr: T[]) {
 	const i = Math.floor(Math.random() * arr.length)
-	return [arr[i], i]
+	return arr[i]
 }

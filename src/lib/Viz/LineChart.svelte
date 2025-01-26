@@ -7,16 +7,18 @@
 	export let charts: number[][] = []
 	export let domainX: number[] = [0, 1]
 	export let domainY: number[] = [0, 1]
-	$: x = linspace(domainX[0], domainX[1], charts[0].length)
+	$: x = linspace(domainX[0], domainX[1], charts[0]?.length || 10)
 </script>
 
 <div class="spline">
 	<CGraph {height}>
-		{#each charts as chart}
-			<CPath {domainX} {domainY} {x} y={chart} color={randomColor()}></CPath>
-		{/each}
-		<CAxisX domain={domainX} ticksNumber={4}></CAxisX>
-		<CAxisY domain={domainY} ticksNumber={4}></CAxisY>
+		{#if charts.length}
+			{#each charts as chart}
+				<CPath {domainX} {domainY} {x} y={chart} color={randomColor()}></CPath>
+			{/each}
+			<CAxisX domain={domainX} ticksNumber={4}></CAxisX>
+			<CAxisY domain={domainY} ticksNumber={4}></CAxisY>
+		{/if}
 	</CGraph>
 </div>
 

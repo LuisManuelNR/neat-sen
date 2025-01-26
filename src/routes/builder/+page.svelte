@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Dag from '$lib/Dag.svelte'
 	import { Brain } from '$lib/KAN/Brain'
+	import { runEveryFrames } from '$lib/utils'
 	import { randomNumber, runOnFrames } from '@chasi/ui/utils'
 
 	let inputsSize = 2
@@ -11,6 +12,7 @@
 	async function handleForward() {
 		// const inputs = Array.from({ length: inputsSize }, () => Math.random())
 		forwardResult = await network.forward([1, 1])
+		network = network
 	}
 
 	function randomizeNetwork() {
@@ -25,10 +27,14 @@
 		stopmutation = undefined
 	}
 	function handleMutate() {
-		stopmutation = runOnFrames(60, () => {
-			network.mutate()
-			network = network
-		})
+		stopmutation = runEveryFrames(
+			() => 60,
+			async () => {
+				network.mutate()
+				forwardResult = await network.forward([1, 1])
+				network = network
+			}
+		)
 	}
 	function addNode() {
 		network.addNode()
@@ -42,13 +48,9 @@
 		network.addEdge()
 		network = network
 	}
-	function logSorted() {
-		console.log(network.dag.sorted)
-		const emptyConnections = []
-		for (const [id, deps] of network.dag.connections) {
-			if (deps.size === 0) emptyConnections.push(id)
-		}
-		console.log(emptyConnections)
+	function removeConnection() {
+		network.removeEdge()
+		network = network
 	}
 </script>
 
@@ -58,8 +60,8 @@
 		<button class="btn" on:click={addNode}> add node </button>
 		<button class="btn" on:click={removeNode}> remove node </button>
 		<button class="btn" on:click={addConnection}> add connection </button>
+		<button class="btn" on:click={removeConnection}> remove connection </button>
 		<button class="btn" on:click={randomizeNetwork}> randomize </button>
-		<button class="btn" on:click={logSorted}> log sorted </button>
 		{#if stopmutation}
 			<button class="btn error" on:click={hanldeStop}> stop mutation </button>
 		{:else}
@@ -75,6 +77,6 @@
 		align-content: start;
 	}
 	.viz {
-		--sm-columns: 200px 1fr;
+		--sm-columns: auto 1fr;
 	}
 </style>

@@ -1,4 +1,4 @@
-import { isInside, randomNumber } from '@chasi/ui/utils'
+import { isInside, linearScale, randomNumber } from '@chasi/ui/utils'
 
 export function linspace(min: number, max: number, N: number): number[] {
 	const result: number[] = []
@@ -152,5 +152,41 @@ export class Vec2D {
 
 		// Asegurarse de que el valor esté en el rango [-1, 1] para evitar errores con Math.acos
 		return Math.acos(clamp(theta, -1, 1))
+	}
+}
+
+export function runEveryFrames(
+	fnFrames: () => number,
+	callback: () => void | Promise<void>
+): () => void {
+	let stop = false // Bandera para detener el loop
+	let isRunning = false // Controla si `callback` está ejecutándose
+
+	async function loop() {
+		if (stop) return // Si se detiene, salir del loop
+
+		const executionsPerFrame = fnFrames() // Obtiene cuántas veces ejecutar `callback` en este frame
+
+		// Ejecuta `callback` el número de veces indicado por `fnFrames`
+		for (let i = 0; i < executionsPerFrame; i++) {
+			if (isRunning) break // No ejecutar más si un callback está aún corriendo
+			isRunning = true
+			try {
+				await callback() // Espera a que el callback termine
+			} finally {
+				isRunning = false // Permite futuras ejecuciones
+			}
+		}
+
+		// Llama al siguiente frame
+		requestAnimationFrame(loop)
+	}
+
+	// Inicia el loop
+	loop()
+
+	// Devuelve una función para detener el loop
+	return () => {
+		stop = true
 	}
 }

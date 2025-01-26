@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { DAG } from '$lib/DAG2'
+	import { DAG } from '$lib/DAG'
+	import Dag from '$lib/Dag.svelte'
+	import { onMount } from 'svelte'
 
-	const dag = new DAG({
+	let dag = new DAG({
 		nodes: {
 			input: (xs: number[]) => xs[0],
 			hidden: (xs: number[]) => xs.reduce((p, c) => p + c, 0),
@@ -38,15 +40,22 @@
 
 	async function processDag() {
 		const pr = await dag.process([2, 2])
-		console.log(pr)
+		const r = []
 		for (const [id, { type, value }] of pr) {
 			if (type === 'output') {
-				result.push(value)
+				r.push(value)
 			}
 		}
-		result = result
+		console.log(pr)
+		result = r
+		dag = dag
 	}
+
+	onMount(() => {
+		dag = dag
+	})
 </script>
 
 <button class="btn" on:click={processDag}>process dag</button>
 <pre>{JSON.stringify(result)}</pre>
+<Dag {dag}></Dag>

@@ -1,156 +1,124 @@
-type Evaluate = (...args: any) => any
-type ConnectionTransform = (...args: any) => any
-export class DAG {
-	nodes: Map<number, DAGUnit> = new Map()
-	connections: Map<number, Set<number>> = new Map()
-	sorted: Set<number>[] = []
-	#id = -1
+import { max, randomString } from '@chasi/ui/utils'
 
-	add(evaluate: Evaluate) {
-		this.#id++
-		this.nodes.set(this.#id, new DAGUnit(evaluate))
-		this.connections.set(this.#id, new Set())
-		this.sort()
-		return this.#id
+type DagStore = {
+	nodes: {
+		[key: string]: (incomingConnections: any[], nodeid: string) => any
+	}
+	connections: {
+		[key: string]: (output: any, connectionid: string) => any
+	}
+}
+type Key<T extends DagStore, K extends keyof T> = keyof T[K] extends string ? keyof T[K] : never
+
+type NodeTypes<T extends DagStore> = Key<T, 'nodes'>
+type ConnectionTypes<T extends DagStore> = Key<T, 'connections'>
+
+export class DAG<T extends DagStore> {
+	nodes: Map<string, NodeTypes<T>> = new Map()
+	connections: Map<string, ConnectionTypes<T>> = new Map()
+	graph: Map<string, Set<string>> = new Map()
+	sorted: Set<string>[] = []
+	store: DagStore
+
+	constructor(store: T) {
+		this.store = store
 	}
 
-	remove(nodeId: number) {
-		// Verifica si el nodo existe
-		if (!this.nodes.has(nodeId)) {
-			throw new Error(`Node ${nodeId} does not exist`)
-		}
+	addNode(type: NodeTypes<T>) {
+		const id = randomString()
+		this.nodes.set(id, type)
+		this.graph.set(id, new Set())
+		return id
+	}
 
-		// Elimina todas las conexiones entrantes al nodo
-		for (const [from, connections] of this.connections) {
-			if (connections.has(nodeId)) {
-				connections.delete(nodeId)
-				const fromUnit = this.nodes.get(from)
-				const toUnit = this.nodes.get(nodeId)
-				fromUnit?.disconnect(toUnit!)
+	removeNode(id: string) {
+		this.nodes.delete(id)
+		this.graph.delete(id)
+		const connToDel = this.connections.keys().filter((k) => k.includes(id))
+		connToDel.forEach((k) => {
+			const [from, to] = k.split('_')
+			if (to === id) {
+				this.graph.get(from)!.delete(id)
 			}
-		}
-
-		// Elimina todas las conexiones salientes desde el nodo
-		this.connections.delete(nodeId)
-
-		// Elimina el nodo de la lista de nodos
-		this.nodes.delete(nodeId)
-
-		// Reordena el DAG
+			this.connections.delete(k)
+		})
 		this.sort()
 	}
 
-	connect(from: number, to: number, fn?: ConnectionTransform) {
-		if (from === to) return
-		const fromUnit = this.nodes.get(from)
-		if (!fromUnit) throw new Error(`Unit ${from} must be added before connect`)
-		const toUnit = this.nodes.get(to)
-		if (!toUnit) throw new Error(`Unit ${to} must be added before connect`)
-
-		this.connections.get(from)!.add(to)
-		fromUnit.connect(toUnit, fn)
+	connect(type: ConnectionTypes<T>, from: string, to: string) {
+		const id = `${from}_${to}`
+		if (this.connections.has(id)) return
+		this.connections.set(id, type)
+		this.graph.get(from)!.add(to)
 		this.sort()
 	}
 
-	disconnect(from: number, to: number) {
-		if (from === to) return
-		const fromUnit = this.nodes.get(from)
-		if (!fromUnit) throw new Error(`Unit ${from} must be added before connect`)
-		const toUnit = this.nodes.get(to)
-		if (!toUnit) throw new Error(`Unit ${to} must be added before connect`)
-
-		this.connections.get(from)!.delete(to)
-		fromUnit.disconnect(toUnit)
+	disconnect(from: string, to: string) {
+		const id = `${from}_${to}`
+		if (!this.connections.has(id)) return
+		this.connections.delete(id)
+		const tconn = this.graph.get(from)!
+		tconn.delete(to)
 		this.sort()
 	}
 
 	async process(inputs: any[]) {
-		const processid = crypto.randomUUID()
-		let outputs = inputs
+		let batchInput: Record<string, any[]> = {}
 
-		for (const [id, node] of this.nodes) {
-			node.value.set(processid, [])
-		}
-
-		this.sorted[0].forEach((id) => {
-			const node = this.nodes.get(id)!
-			node.value.set(processid, [outputs[id]])
+		this.sorted[0].values().forEach((id, i) => {
+			batchInput[id] = [inputs[i]]
 		})
+
+		let outputs: Map<string, { type: string; value: any }> = new Map()
 
 		for (const batch of this.sorted) {
 			const promises: Promise<void>[] = []
-
-			batch.forEach((id) => {
-				const node = this.nodes.get(id)!
-				promises.push(node.process(processid))
+			batch.forEach((id, i) => {
+				promises.push(
+					new Promise(async (resolve) => {
+						const conn = this.graph.get(id)!
+						const nodetype = this.nodes.get(id)!
+						let r = await this.store.nodes[nodetype](batchInput[id], id)
+						for (const dep of conn) {
+							if (!batchInput[dep]) batchInput[dep] = []
+							const connId = `${id}_${dep}`
+							if (this.connections.has(connId)) {
+								const connectionType = this.connections.get(connId)!
+								r = await this.store.connections[connectionType](r, connId)
+							}
+							batchInput[dep].push(r)
+						}
+						outputs.set(id, { type: nodetype, value: r })
+						resolve()
+					})
+				)
 			})
-
-			outputs = await Promise.all(promises)
+			await Promise.all(promises)
 		}
-
-		for (const [id, node] of this.nodes) {
-			node.value.delete(processid)
-		}
-
 		return outputs
 	}
 
 	sort() {
-		//@ts-ignore
-		this.sorted = toposort(this.connections)
+		this.sorted = toposort(this.graph)
 		return this.sorted
 	}
 
-	garph() {
-		const units: Array<{ from: number; to: number[] }[]> = []
-		this.sorted.forEach((batch) => {
-			const layer: { from: number; to: number[] }[] = []
-			batch.forEach((unit) => {
-				layer.push({ from: unit, to: Array.from(this.connections.get(unit)!) })
-			})
-			units.push(layer)
-		})
-		return units
-	}
-}
-export class DAGUnit {
-	#dependeants: Set<DAGUnit> = new Set()
-	#connectionTranforms: Map<DAGUnit, ConnectionTransform> = new Map()
-	evaluate: Evaluate
-	value: Map<string, any[]> = new Map()
-
-	constructor(evaluate: Evaluate) {
-		this.evaluate = evaluate
-	}
-
-	connect(to: DAGUnit, fn?: ConnectionTransform) {
-		this.#dependeants.add(to)
-		if (fn) {
-			this.#connectionTranforms.set(to, fn)
-		}
-	}
-
-	disconnect(to: DAGUnit) {
-		this.#dependeants.delete(to)
-	}
-
-	async process(id: string) {
-		let result = await this.evaluate(this.value.get(id))
-
-		this.#dependeants.forEach((unit) => {
-			if (this.#connectionTranforms.has(unit)) {
-				const tresult = this.#connectionTranforms.get(unit)!(result)
-				unit.value.get(id)?.push(tresult)
-			}
-		})
-
-		return result
+	clone(store: DagStore) {
+		const clone = new DAG(this.store)
+		//@ts-ignore
+		clone.nodes = structuredClone(this.nodes)
+		//@ts-ignore
+		clone.connections = structuredClone(this.connections)
+		clone.graph = structuredClone(this.graph)
+		clone.store = store
+		clone.sort()
+		return clone
 	}
 }
 
 export type DirectedAcyclicGraph = Map<string, Iterable<string>>
 
-export function toposort(dag: DirectedAcyclicGraph) {
+function toposort(dag: DirectedAcyclicGraph) {
 	const inDegrees = countInDegrees(dag)
 
 	let { roots, nonRoots } = getRootsAndNonRoots(inDegrees)
