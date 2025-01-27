@@ -10,8 +10,9 @@
 	const realY = realX.map((n) => realFunction(n))
 	let predictedY: number[][] = []
 	function realFunction(x: number) {
-		const v = Math.sqrt(Math.pow(x, 2) * Math.sin(x * 3))
-		return linearScale(v, 0, 1, 0.4, 0.8)
+		const v = Math.sin(x * 10)
+		// const v = Math.sqrt(Math.pow(x, 2) * Math.sin(x * 3))
+		return linearScale(v, -1, 1, 0, 1)
 		// return Math.pow(x, 2)
 	}
 	class Agent extends Genome {

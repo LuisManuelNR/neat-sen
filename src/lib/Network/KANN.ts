@@ -1,5 +1,4 @@
 import { DAG } from '$lib/DAG'
-import { clamp } from '$lib/utils'
 import { BSpline } from './BSpline'
 
 type BrainDag = {
@@ -18,10 +17,8 @@ export class Brain {
 	#outputSize: number
 	splines: Map<string, BSpline> = new Map()
 	dag: DAG<BrainDag>
-	nControlPoints: number
 
-	constructor(inputSize: number, outputSize: number, nControlPoints = 10) {
-		this.nControlPoints = nControlPoints
+	constructor(inputSize: number, outputSize: number) {
 		this.#inputSize = inputSize
 		this.#outputSize = outputSize
 		this.dag = new DAG({
@@ -32,7 +29,9 @@ export class Brain {
 			},
 			connections: {
 				identity: (x) => x,
-				spline: (x, connid) => this.splines.get(connid)!.evaluate(x)
+				spline: (x, connid) => {
+					return this.splines.get(connid)!.evaluate(x)
+				}
 			}
 		})
 
@@ -51,7 +50,7 @@ export class Brain {
 	}
 
 	#connectWithSpline(from: string, to: string) {
-		this.splines.set(`${from}_${to}`, new BSpline(this.nControlPoints, 1))
+		this.splines.set(`${from}_${to}`, new BSpline(10, 2))
 		this.dag.connect('spline', from, to)
 	}
 
@@ -167,15 +166,15 @@ export class Brain {
 	}
 
 	mutate() {
-		// if (Math.random() < 0.9) {
-		this.splines.forEach((s) => s.mutate())
-		// } else {
-		// 	const probabilty = Math.floor(Math.random() * 5)
-		// 	if (probabilty === 0) this.addNode()
-		// 	if (probabilty === 1) this.addEdge()
-		// 	if (probabilty === 2) this.removeNode()
-		// 	if (probabilty === 3) this.removeEdge()
-		// }
+		if (Math.random() < 0.9) {
+			this.splines.forEach((s) => s.mutate())
+		} else {
+			const probabilty = Math.floor(Math.random() * 5)
+			if (probabilty === 0) this.addNode()
+			if (probabilty === 1) this.addEdge()
+			if (probabilty === 2) this.removeNode()
+			if (probabilty === 3) this.removeEdge()
+		}
 		// if (this.splines.size !== this.dag.connections.size) {
 		// 	console.log('leak splines', this.splines.size, this.dag.connections.size)
 		// }
@@ -190,25 +189,11 @@ export class Brain {
 		}
 		return clone
 	}
-
-	draw(width: number, height: number) {
-		const g = this.dag.draw(width, height)
-		const splines = g.connectionPositions.map((c) => ({
-			spline: this.splines.get(`${c[4]}_${c[5]}`)!,
-			x: (c[0] + c[1]) / 2,
-			y: (c[2] + c[3]) / 2
-		}))
-		return {
-			...g,
-			splines
-		}
-	}
 }
 
 function sumAll(inputs: number[]) {
 	const sum = inputs.reduce((prev, current) => prev + current, 0)
-	return clamp(sum, 0, 1)
-	// return sum / inputs.length
+	return sum / inputs.length
 }
 function randomElement<T>(arr: T[]) {
 	const i = Math.floor(Math.random() * arr.length)

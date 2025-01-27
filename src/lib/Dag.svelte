@@ -13,32 +13,34 @@
 		nodeType[key] = randomColor()
 	}
 
-	$: graph = dag.draw(width, height)
+	$: graph = !import.meta.env.SSR && dag.draw(width, height)
 	const R = 10
 </script>
 
-<div class="s-6">
-	<CGraph {height}>
-		{#each graph.connectionPositions as [x1, x2, y1, y2]}
-			<CPath
-				domainX={[0, width]}
-				domainY={[height, 0]}
-				x={[x1, x2]}
-				y={[y1, y2]}
-				width="1"
-				color="var(--s-2)"
-			></CPath>
-		{/each}
-		{#each graph.nodePositions as [id, { x, y, type }]}
-			<CCircle
-				domainX={[0, width]}
-				domainY={[height, 0]}
-				{x}
-				{y}
-				r={R}
-				strokeWidth="0"
-				color={nodeType[type]}
-			/>
-		{/each}
-	</CGraph>
-</div>
+{#if graph}
+	<div class="s-6">
+		<CGraph {height}>
+			{#each graph.connectionPositions as [x1, x2, y1, y2]}
+				<CPath
+					x={[x1, x2]}
+					y={[y1, y2]}
+					domainX={[0, width]}
+					domainY={[height, 0]}
+					width="1"
+					color="var(--s-2)"
+				></CPath>
+			{/each}
+			{#each graph.nodePositions as [id, { x, y, type }]}
+				<CCircle
+					domainX={[0, width]}
+					domainY={[height, 0]}
+					{x}
+					{y}
+					r={R}
+					strokeWidth="0"
+					color={nodeType[type]}
+				/>
+			{/each}
+		</CGraph>
+	</div>
+{/if}

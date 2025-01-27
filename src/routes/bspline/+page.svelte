@@ -4,9 +4,12 @@
 	import { runOnFrames } from '@chasi/ui/utils'
 	import { linspace } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
+	import { CGraph, CPath } from '@chasi/ui/graph'
+	import Spline from '$lib/Viz/Spline.svelte'
 
 	const DOMAIN = [0, 1] as [number, number]
-	let spline = new BSpline(10, 3)
+	// let spline = new BSpline(linspace(0, 1, 10), 3)
+	let spline = new BSpline(2, 1)
 	const x = linspace(DOMAIN[0], DOMAIN[1], 1000)
 	$: y = x.map((v) => spline.evaluate(v))
 
@@ -23,6 +26,7 @@
 			spline = spline
 		})
 	}
+	$: basis = spline.plotBasis()
 </script>
 
 <div class="d-grid gap-4 graph mx-auto">
@@ -36,14 +40,8 @@
 		<LineChart charts={[y]} height={500}></LineChart>
 	</div>
 	<div>
-		<!-- <p>Basis functions</p>
-		<CGraph height={500}>
-			{#each basis as b}
-				<CPath {domainX} {domainY} x={spline.knots} y={b} color={randomColor()}></CPath>
-			{/each}
-			<CAxisX domain={domainX} ticksNumber={4}></CAxisX>
-			<CAxisY domain={domainY} ticksNumber={4}></CAxisY>
-		</CGraph> -->
+		<p>Basis functions</p>
+		<LineChart charts={basis} height={500}></LineChart>
 	</div>
 </div>
 

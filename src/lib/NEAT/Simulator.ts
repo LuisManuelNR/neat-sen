@@ -4,8 +4,8 @@ import { Brain } from '$lib/KAN/Brain'
 export class Genome {
 	brain: Brain
 	fitness = 0
-	constructor(input: number, output: number) {
-		this.brain = new Brain(input, output)
+	constructor(input: number, output: number, nControlPoints = 10) {
+		this.brain = new Brain(input, output, nControlPoints)
 	}
 
 	async train() {}
@@ -45,6 +45,14 @@ export class Simulation<T extends Genome> {
 
 	#selection() {
 		this.population.sort((a, b) => b.fitness - a.fitness)
+		for (let i = 1; i < this.population.length; i++) {
+			const p1 = this.population[i]
+			const p2 = this.population[i - 1]
+			const b1 = new Set(p1.brain.splines.values())
+			const b2 = new Set(p2.brain.splines.values())
+			const res = b1.difference(b2)
+			if (res.size === 0) throw new Error('QUE PINGA PASA')
+		}
 
 		// nos quedamos con la mitad
 		const half = this.population.slice(0, Math.round(this.#populationSize / 2))

@@ -13,9 +13,10 @@
 	const h = 600
 
 	let target = new GameObject()
-	target.x = randomNumber(50, w - 50)
-	target.y = randomNumber(50, h - 50)
-	let initialPos = { x: randomNumber(50, w - 50), y: randomNumber(50, h - 50) }
+	target.x = w / 2 - 300
+	target.y = h / 2
+	let initialPos = { x: w / 2, y: h / 2 }
+	// let initialPos = { x: randomNumber(50, w - 50), y: randomNumber(50, h - 50) }
 	class Spider extends Genome {
 		speed = MAX_SPEED
 		prevDistance = 0
@@ -24,17 +25,18 @@
 		distanceToTarget = 0
 
 		constructor() {
-			super(3, 1)
+			super(3, 1, 2)
 			this.go.x = initialPos.x
 			this.go.y = initialPos.y
 			this.speed = MAX_SPEED
+			this.go.angle = randomNumber(-Math.PI, Math.PI)
 		}
 
 		async seek() {
-			this.distanceToTarget = this.go.distanceTo(target)
+			// this.distanceToTarget = this.go.distanceTo(target)
 
-			this.go.x = clamp(this.go.x, 0, w)
-			this.go.y = clamp(this.go.y, 0, h)
+			// this.go.x = clamp(this.go.x, 0, w)
+			// this.go.y = clamp(this.go.y, 0, h)
 			// this.go.angle = clamp(this.go.angle, -Math.PI, Math.PI)
 
 			const inputs = [
@@ -60,38 +62,39 @@
 			// this.go.angle = desnormalizeAtan2(newAngle)
 			this.go.angle = linearScale(newAngle, 0, 1, -Math.PI, Math.PI)
 			// respuesta
-			// this.go.angle = this.go.angleTo(this.target)
+			// this.go.angle = this.go.angleTo(target)
 		}
 
 		async train() {
-			this.go.forward(this.speed)
+			// this.go.forward(this.speed)
 			await this.seek()
 			this.updateFitness()
 		}
 
 		async evaluate() {
-			this.go.forward(this.speed)
+			// this.go.forward(this.speed)
 			await this.seek()
 		}
 
 		updateFitness() {
 			const objective = this.go.angleTo(target)
 			const error = Math.abs(this.go.angle - objective)
+			this.fitness += 1 / (1 + error)
 			// Fitness principal basado en el error del ángulo
-			const errorContribution = 1 / (1 + error)
+			// const errorContribution = 1 / (1 + error)
 
-			// Penalizaciones por nodos y conexiones (en forma de divisores)
-			const nodePenaltyFactor = 1 + this.brain.dag.nodes.size * 0.05
-			const connectionPenaltyFactor = 1 + this.brain.dag.connections.size * 0.05
+			// // Penalizaciones por nodos y conexiones (en forma de divisores)
+			// const nodePenaltyFactor = 1 + this.brain.dag.nodes.size * 0.05
+			// const connectionPenaltyFactor = 1 + this.brain.dag.connections.size * 0.05
 
-			// Reducir el impacto del errorContribution por los factores de penalización
-			const penalizedFitness = errorContribution / (nodePenaltyFactor * connectionPenaltyFactor)
+			// // Reducir el impacto del errorContribution por los factores de penalización
+			// const penalizedFitness = errorContribution / (nodePenaltyFactor * connectionPenaltyFactor)
 
-			// Fitness base para evitar valores bajos
-			const baseFitness = 0.1
+			// // Fitness base para evitar valores bajos
+			// const baseFitness = 0.1
 
-			// Actualizar fitness
-			this.fitness += baseFitness + penalizedFitness
+			// // Actualizar fitness
+			// this.fitness += baseFitness + penalizedFitness
 		}
 	}
 
@@ -103,20 +106,23 @@
 	let frames = 0
 	async function onNewGen(population: Spider[]) {
 		spiders = population
-		frames++
-		if (frames % 50 === 0) {
-			initialPos = { x: randomNumber(50, w - 50), y: randomNumber(50, h - 50) }
-			target.x = randomNumber(50, w - 50)
-			target.y = randomNumber(50, h - 50)
-		}
+		// frames++
+		// if (frames % 10 === 0) {
+		// initialPos = { x: randomNumber(50, w - 50), y: randomNumber(50, h - 50) }
+		// target.x = randomNumber(50, w - 50)
+		// target.y = randomNumber(50, h - 50)
+		// }
 	}
 
 	async function onUpdate(population: Spider[]) {
+		frames++
 		if (showAll) {
 			spiders = population
 		} else {
 			spiders = [population[0]]
 		}
+		target.x += Math.sin(frames * 0.1) * 30
+		target.y += Math.cos(frames * 0.1) * 30
 	}
 
 	function handleClick(e: MouseEvent) {
@@ -134,10 +140,7 @@
 		<input type="checkbox" on:change={() => (showAll = !showAll)} />
 	</CLabel>
 	{#each spiders as spider}
-		<SpiderComponent
-			go={spider.go}
-			color="oklab({100 / (1 + spider.distanceToTarget)} -0.04 -0.12 / 1)"
-		/>
+		<SpiderComponent go={spider.go} color="var(--accent)" />
 	{/each}
 	<GameObjectComponent go={target}>
 		<div class="target brand"></div>

@@ -104,20 +104,19 @@ export class DAG<T extends DagStore> {
 	}
 
 	clone(store: DagStore) {
-		const clone = new DAG(this.store)
+		const clone = new DAG(store)
 		//@ts-ignore
 		clone.nodes = structuredClone(this.nodes)
 		//@ts-ignore
 		clone.connections = structuredClone(this.connections)
 		clone.graph = structuredClone(this.graph)
-		clone.store = store
 		clone.sort()
 		return clone
 	}
 
 	draw(width = 800, height = 600) {
 		const nodePositions: Map<string, { x: number; y: number; type: string }> = new Map()
-		const connectionPositions: number[][] = []
+		const connectionPositions: [number, number, number, number, string, string][] = []
 
 		// Obtener el orden topológico de los nodos
 		const layers = this.sorted
@@ -143,7 +142,7 @@ export class DAG<T extends DagStore> {
 			connections.forEach((to) => {
 				const fromPos = nodePositions.get(from)!
 				const toPos = nodePositions.get(to)!
-				connectionPositions.push([fromPos.x, toPos.x, fromPos.y, toPos.y])
+				connectionPositions.push([fromPos.x, toPos.x, fromPos.y, toPos.y, from, to])
 			})
 		}
 

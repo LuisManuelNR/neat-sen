@@ -17,16 +17,17 @@ export class BSpline {
 	}
 
 	plot(resolution = 100) {
-		const x = linspace(this.points[0], this.points.at(-1)!, resolution)
+		const x = linspace(0, 1, resolution)
 		const y = x.map((v) => this.evaluate(v))
 		return { x, y }
 	}
 
+	// Evaluar el B-Spline usando las funciones base
 	evaluate(x: number): number {
 		const degree = this.degree
 		const knots = this.knots
 
-		// Remap `x` to the domain where the spline is defined
+		// Remap `x` al dominio donde está definida la spline
 		const domain = [degree, knots.length - degree - 1]
 		const low = knots[domain[0]]
 		const high = knots[domain[1]]
@@ -34,28 +35,48 @@ export class BSpline {
 
 		if (x < low || x > high) throw new Error(`x is out of bounds, x=${x}, [${low}, ${high}]`)
 
-		// Find the segment `s` for the `x` value
-		let s = domain[0]
-		for (; s < domain[1]; s++) {
-			if (x >= knots[s] && x <= knots[s + 1]) {
-				break
-			}
+		// Evaluar el valor usando las funciones base
+		return this.points.reduce((sum, p, i) => sum + p * this.basisFunction(i, degree, x), 0)
+	}
+
+	// Método para calcular las funciones base
+	plotBasis(resolution = 100): number[][] {
+		const basisFunctions: number[][] = []
+		const x = linspace(
+			this.knots[this.degree],
+			this.knots[this.knots.length - this.degree - 1],
+			resolution
+		)
+
+		// Calculamos cada función base
+		for (let i = 0; i < this.points.length; i++) {
+			const basis = x.map((xi) => this.basisFunction(i, this.degree, xi))
+			basisFunctions.push(basis)
 		}
 
-		// Convert points to "homogeneous coordinates" (in this case, weights are 1)
-		let v = this.points.map((p) => [p, 1])
+		return basisFunctions
+	}
 
-		// Perform De Boor's algorithm
-		for (let l = 1; l <= degree + 1; l++) {
-			for (let i = s; i > s - degree - 1 + l; i--) {
-				const alpha = (x - knots[i]) / (knots[i + degree + 1 - l] - knots[i])
-				v[i][0] = (1 - alpha) * v[i - 1][0] + alpha * v[i][0] // Interpolate value
-				v[i][1] = (1 - alpha) * v[i - 1][1] + alpha * v[i][1] // Interpolate weight
-			}
+	// Función recursiva para calcular las funciones base
+	private basisFunction(i: number, degree: number, x: number): number {
+		const knots = this.knots
+
+		if (degree === 0) {
+			// Caso base: grado 0
+			return knots[i] <= x && x < knots[i + 1] ? 1 : 0
+		} else {
+			const leftDenom = knots[i + degree] - knots[i]
+			const left =
+				leftDenom !== 0 ? ((x - knots[i]) / leftDenom) * this.basisFunction(i, degree - 1, x) : 0
+
+			const rightDenom = knots[i + degree + 1] - knots[i + 1]
+			const right =
+				rightDenom !== 0
+					? ((knots[i + degree + 1] - x) / rightDenom) * this.basisFunction(i + 1, degree - 1, x)
+					: 0
+
+			return left + right
 		}
-
-		// Convert back to Cartesian by dividing by the weight
-		return v[s][0] / v[s][1]
 	}
 
 	// Mutación de los puntos de control
