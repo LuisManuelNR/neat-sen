@@ -1,18 +1,12 @@
 <script lang="ts">
 	import { BSpline } from '$lib/KAN/BSpline'
 	import { CLabel } from '@chasi/ui'
-	import { runOnFrames, randomColor, min, max } from '@chasi/ui/utils'
-	import Spline from '$lib/Viz/Spline.svelte'
+	import { runOnFrames } from '@chasi/ui/utils'
 	import { linspace } from '$lib/utils'
-	import { CAxisX, CAxisY, CGraph, CPath } from '@chasi/ui/graph'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 
 	const DOMAIN = [0, 1] as [number, number]
-	const points = linspace(DOMAIN[0], DOMAIN[1], 10)
-	let spline = new BSpline(
-		points.map((p) => Math.pow(p, 2)),
-		3
-	)
+	let spline = new BSpline(10, 3)
 	const x = linspace(DOMAIN[0], DOMAIN[1], 1000)
 	$: y = x.map((v) => spline.evaluate(v))
 

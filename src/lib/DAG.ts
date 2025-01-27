@@ -114,6 +114,41 @@ export class DAG<T extends DagStore> {
 		clone.sort()
 		return clone
 	}
+
+	draw(width = 800, height = 600) {
+		const nodePositions: Map<string, { x: number; y: number; type: string }> = new Map()
+		const connectionPositions: number[][] = []
+
+		// Obtener el orden topológico de los nodos
+		const layers = this.sorted
+
+		const layerCount = layers.length
+		const layerWidth = width / (layerCount + 1) // Anchura entre capas
+
+		// Distribuir nodos por capa
+		layers.forEach((layer, layerIndex) => {
+			const nodeCount = layer.size
+			const layerHeight = height / (nodeCount + 1) // Espacio entre nodos en la capa
+
+			Array.from(layer).forEach((node, nodeIndex) => {
+				const x = (layerIndex + 1) * layerWidth // Posición horizontal según la capa
+				const y = (nodeIndex + 1) * layerHeight // Posición vertical
+				const type = this.nodes.get(node)!
+				nodePositions.set(node, { x, y, type })
+			})
+		})
+
+		// Calcular posiciones de las conexiones
+		for (const [from, connections] of this.graph) {
+			connections.forEach((to) => {
+				const fromPos = nodePositions.get(from)!
+				const toPos = nodePositions.get(to)!
+				connectionPositions.push([fromPos.x, toPos.x, fromPos.y, toPos.y])
+			})
+		}
+
+		return { nodePositions, connectionPositions }
+	}
 }
 
 export type DirectedAcyclicGraph = Map<string, Iterable<string>>

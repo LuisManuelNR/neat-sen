@@ -24,7 +24,7 @@
 		distanceToTarget = 0
 
 		constructor() {
-			super(5, 1)
+			super(3, 1)
 			this.go.x = initialPos.x
 			this.go.y = initialPos.y
 			this.speed = MAX_SPEED
@@ -38,16 +38,17 @@
 			// this.go.angle = clamp(this.go.angle, -Math.PI, Math.PI)
 
 			const inputs = [
-				// linearScale(target.y - this.go.y, -h, h, 0, 1),
-				// linearScale(target.x - this.go.x, -w, w, 0, 1)
-				linearScale(this.go.x, 0, w, 0, 1),
-				linearScale(this.go.y, 0, h, 0, 1),
-				linearScale(target.x, 0, w, 0, 1),
-				linearScale(target.y, 0, h, 0, 1),
+				linearScale(target.y - this.go.y, -h, h, 0, 1),
+				linearScale(target.x - this.go.x, -w, w, 0, 1),
+				linearScale(this.go.angleTo(target), -Math.PI, Math.PI, 0, 1)
+				// linearScale(this.go.x, 0, w, 0, 1),
+				// linearScale(this.go.y, 0, h, 0, 1),
+				// linearScale(target.x, 0, w, 0, 1),
+				// linearScale(target.y, 0, h, 0, 1),
 				// linearScale(this.go.angle, -Math.PI, Math.PI, 0, 1)
 				// linearScale(this.speed, 0, MAX_SPEED, 0, 1),
 				// linearScale(this.distanceToTarget, 0, w, 0, 1)
-				atan2Normalized(this.go.angle)
+				// atan2Normalized(this.go.angle)
 			]
 
 			const outputs = await this.brain.forward(inputs)
@@ -56,8 +57,8 @@
 
 			// this.speed = linearScale(newSpeed, 0, 1, 0, MAX_SPEED)
 			// this.go.angle = newAngle
-			this.go.angle = desnormalizeAtan2(newAngle)
-			// this.go.angle = linearScale(this.go.angle, 0, 2 * Math.PI, -Math.PI, Math.PI)
+			// this.go.angle = desnormalizeAtan2(newAngle)
+			this.go.angle = linearScale(newAngle, 0, 1, -Math.PI, Math.PI)
 			// respuesta
 			// this.go.angle = this.go.angleTo(this.target)
 		}
@@ -76,20 +77,21 @@
 		updateFitness() {
 			const objective = this.go.angleTo(target)
 			const error = Math.abs(this.go.angle - objective)
-			this.fitness += 1 / (1 + error)
-			// this.fitness += 1 / (1 + this.distanceToTarget)
-			// if (this.distanceToTarget < this.prevDistance) {
-			// 	this.fitness++
-			// } else if (this.distanceToTarget > this.prevDistance) {
-			// 	this.fitness -= 0.5
-			// }
-			// if (this.distanceToTarget > this.prevDistance) {
-			// 	this.fitness--
-			// }
-			// this.fitness += Math.pow(this.fitness, 2)
+			// Fitness principal basado en el error del ángulo
+			const errorContribution = 1 / (1 + error)
 
-			// this.prevDistance = this.distanceToTarget
-			// console.log(this.fitness)
+			// Penalizaciones por nodos y conexiones (en forma de divisores)
+			const nodePenaltyFactor = 1 + this.brain.dag.nodes.size * 0.05
+			const connectionPenaltyFactor = 1 + this.brain.dag.connections.size * 0.05
+
+			// Reducir el impacto del errorContribution por los factores de penalización
+			const penalizedFitness = errorContribution / (nodePenaltyFactor * connectionPenaltyFactor)
+
+			// Fitness base para evitar valores bajos
+			const baseFitness = 0.1
+
+			// Actualizar fitness
+			this.fitness += baseFitness + penalizedFitness
 		}
 	}
 
@@ -115,17 +117,17 @@
 		} else {
 			spiders = [population[0]]
 		}
-		// await Promise.all(spiders.map(s => s.evaluate))
 	}
 
-	function atan2Normalized(angle: number): number {
-		const angleIn2Pi = angle < 0 ? angle + 2 * Math.PI : angle // Rango [0, 2π]
-		return angleIn2Pi / (2 * Math.PI) // Rango [0, 1]
-	}
-	function desnormalizeAtan2(normalizedAngle: number): number {
-		return normalizedAngle * 2 * Math.PI // Rango [0, 2π]
+	function handleClick(e: MouseEvent) {
+		const t = e.target as HTMLElement
+		if (!t.closest('.simulator')) return
+		target.x = e.offsetX
+		target.y = e.offsetY
 	}
 </script>
+
+<svelte:window on:click={handleClick} />
 
 <Simulator population={50} {create} defaulEvolutionInterval={200} {onUpdate} {onNewGen}>
 	<CLabel label="show all">
@@ -146,5 +148,6 @@
 	.target {
 		display: grid;
 		place-content: center;
+		pointer-events: none;
 	}
 </style>
