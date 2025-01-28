@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Group from '$lib/Group.svelte'
 	import type { Brain } from '$lib/KAN/Brain'
 	import { CCircle, CGraph, CPath } from '@chasi/ui/graph'
 	import { randomColor } from '@chasi/ui/utils'
@@ -21,6 +20,11 @@
 
 {#if graph}
 	<div class="s-6">
+		<div class="d-flex gap-1 flex-wrap">
+			{#each graph.splines as { spline, x, y }}
+				<Spline {spline}></Spline>
+			{/each}
+		</div>
 		<CGraph {height}>
 			{#each graph.connectionPositions as [x1, x2, y1, y2]}
 				<CPath
@@ -44,10 +48,5 @@
 				/>
 			{/each}
 		</CGraph>
-		<div class="d-flex gap-4">
-			{#each graph.splines as { spline, x, y }}
-				<Spline {spline}></Spline>
-			{/each}
-		</div>
 	</div>
 {/if}

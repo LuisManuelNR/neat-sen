@@ -66,7 +66,7 @@
 	{:else}
 		<button class="btn success" on:click={startSimulation}> train </button>
 	{/if}
-	<CLabel label="evolve intereval" class="s-6">
+	<CLabel label="evolve interval" class="s-6">
 		<input type="number" bind:value={evolutionInterval} />
 	</CLabel>
 

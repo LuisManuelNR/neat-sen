@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { BSpline } from '$lib/KAN/BSpline'
 	import { Genome } from '$lib/NEAT/Simulator'
 	import { linspace } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
@@ -10,14 +11,13 @@
 	const realY = realX.map((n) => realFunction(n))
 	let predictedY: number[][] = []
 	function realFunction(x: number) {
-		const v = Math.sin(x * 10)
-		// const v = Math.sqrt(Math.pow(x, 2) * Math.sin(x * 3))
-		return linearScale(v, -1, 1, 0, 1)
+		return linearScale(Math.sin(x * 10), -1, 1, 0, 1)
+		return Math.sqrt(Math.pow(x, 2) * Math.sin(x * 3))
 		// return Math.pow(x, 2)
 	}
 	class Agent extends Genome {
 		constructor() {
-			super(1, 1)
+			super(1, 1, 10)
 		}
 
 		async train() {
@@ -26,7 +26,19 @@
 
 			const real = realFunction(inputs[0])
 			const error = Math.abs(outputs[0] - real)
-			this.fitness += 1 / (1 + error)
+			const errorContribution = 1 / (1 + error)
+
+			const nodePenaltyFactor = 1 + this.brain.dag.nodes.size * 0.05
+			const connectionPenaltyFactor = 1 + this.brain.dag.connections.size * 0.05
+
+			// Reducir el impacto del errorContribution por los factores de penalización
+			const penalizedFitness = errorContribution / (nodePenaltyFactor * connectionPenaltyFactor)
+
+			// Fitness base para evitar valores bajos
+			const baseFitness = 0.1
+
+			// Actualizar fitness
+			this.fitness += baseFitness + penalizedFitness
 		}
 
 		async evaluate() {

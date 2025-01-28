@@ -1,17 +1,13 @@
-<script lang="ts" context="module">
-	const domain = [0, 1] as [number, number]
-</script>
-
 <script lang="ts">
 	import type { BSpline } from '$lib/KAN/BSpline'
-	import { CGraph, CPath, CAxisX, CAxisY } from '@chasi/ui/graph'
+	import { CGraph, CPath } from '@chasi/ui/graph'
 
 	export let spline: BSpline
 	export let width = 50
 	export let height = 50
-	export let helpers = false
 
-	const margin = helpers ? 40 : 0
+	const margin = 0
+	const domain = [0, 1] as [number, number]
 	$: p = spline.plot(30)
 </script>
 
@@ -24,10 +20,6 @@
 		marginTop={margin}
 	>
 		<CPath domainX={domain} domainY={domain} x={p.x} y={p.y} color="var(--brand)"></CPath>
-		{#if helpers}
-			<CAxisX {domain} ticksNumber={5}></CAxisX>
-			<CAxisY {domain} ticksNumber={5}></CAxisY>
-		{/if}
 	</CGraph>
 </div>
 

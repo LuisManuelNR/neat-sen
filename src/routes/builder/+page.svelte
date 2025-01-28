@@ -2,6 +2,7 @@
 	import Dag from '$lib/Dag.svelte'
 	import { Brain } from '$lib/KAN/Brain'
 	import { runEveryFrames } from '$lib/utils'
+	import Network from '$lib/Viz/Network.svelte'
 	import { randomNumber, runOnFrames } from '@chasi/ui/utils'
 
 	let inputsSize = 2
@@ -69,7 +70,7 @@
 		{/if}
 		<p>forward: {JSON.stringify(forwardResult, null, 2)}</p>
 	</div>
-	<Dag dag={network.dag}></Dag>
+	<Network {network}></Network>
 </div>
 
 <style>

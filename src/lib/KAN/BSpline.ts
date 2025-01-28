@@ -2,18 +2,18 @@ import { clamp, linspace, randomGaussian } from '$lib/utils'
 
 export class BSpline {
 	points: number[]
-	knots: number[]
+	knots: number[] = []
 	degree
 
-	constructor(points: number[] | number, degree = 2) {
+	constructor(points: number[] | number, degree: number) {
 		this.points = Array.isArray(points)
 			? points
 			: Array(points)
 					.fill(0)
-					.map(() => Math.random())
+					.map(() => randomGaussian(0.5, 0.05))
 
 		this.degree = degree
-		this.knots = Array.from({ length: this.points.length + degree + 1 }, (_, i) => i)
+		this.#buildKnots()
 	}
 
 	plot(resolution = 100) {
@@ -33,7 +33,10 @@ export class BSpline {
 		const high = knots[domain[1]]
 		x = x * (high - low) + low
 
-		if (x < low || x > high) throw new Error(`x is out of bounds, x=${x}, [${low}, ${high}]`)
+		if (x < low) x = low
+		if (x > high) x = high
+
+		// if (x < low || x > high) throw new Error(`x is out of bounds, x=${x}, [${low}, ${high}]`)
 
 		// Evaluar el valor usando las funciones base
 		return this.points.reduce((sum, p, i) => sum + p * this.basisFunction(i, degree, x), 0)
@@ -79,13 +82,19 @@ export class BSpline {
 		}
 	}
 
-	// Mutación de los puntos de control
+	#buildKnots() {
+		this.knots = Array.from({ length: this.points.length + this.degree + 1 }, (_, i) => i)
+	}
+
 	mutate() {
+		// Mutación de los puntos existentes
 		this.points = this.points.map((c) => {
 			if (Math.random() > 0.1) {
+				// Mutación pequeña basada en una distribución gaussiana
 				c += randomGaussian(0, 0.01)
-				c = clamp(c, 0, 1)
+				c = clamp(c, 0, 1) // Asegura que esté dentro de [0, 1]
 			} else if (Math.random() < 0.03) {
+				// Mutación más drástica: reemplazo aleatorio
 				c = Math.random()
 			}
 			return c
@@ -94,6 +103,6 @@ export class BSpline {
 
 	// Clonación de la spline
 	clone(): BSpline {
-		return new BSpline([...this.points])
+		return new BSpline([...this.points], this.degree)
 	}
 }

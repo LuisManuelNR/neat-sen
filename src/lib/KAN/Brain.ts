@@ -1,5 +1,6 @@
 import { DAG } from '$lib/DAG'
-import { clamp } from '$lib/utils'
+import { clamp, relu, sigmoid } from '$lib/utils'
+import { linearScale, max, min } from '@chasi/ui/utils'
 import { BSpline } from './BSpline'
 
 type BrainDag = {
@@ -13,6 +14,7 @@ type BrainDag = {
 		spline: (x: number, connid: any) => number
 	}
 }
+
 export class Brain {
 	#inputSize: number
 	#outputSize: number
@@ -50,8 +52,12 @@ export class Brain {
 		}
 	}
 
-	#connectWithSpline(from: string, to: string) {
-		this.splines.set(`${from}_${to}`, new BSpline(this.nControlPoints, 1))
+	#connectWithSpline(from: string, to: string, spline?: BSpline) {
+		if (spline) {
+			this.splines.set(`${from}_${to}`, spline.clone())
+		} else {
+			this.splines.set(`${from}_${to}`, new BSpline(this.nControlPoints, 2))
+		}
 		this.dag.connect('spline', from, to)
 	}
 
@@ -111,13 +117,13 @@ export class Brain {
 		const [from, to] = randomElement(conexiones)
 
 		// 3. Desconectar la conexión seleccionada
-		this.#disconnect(from, to)
+		const spline = this.#disconnect(from, to)
 
 		// 4. Crear un nuevo nodo
 		const nuevoNodo = this.dag.addNode('hidden')
 
 		// 5. Establecer nuevas conexiones
-		this.#connectWithSpline(from, nuevoNodo)
+		this.#connectWithSpline(from, nuevoNodo, spline)
 		this.#connectWithSpline(nuevoNodo, to)
 	}
 
@@ -150,8 +156,10 @@ export class Brain {
 	}
 
 	#disconnect(from: string, to: string) {
+		const spline = this.splines.get(`${from}_${to}`)
 		this.dag.disconnect(from, to)
 		this.splines.delete(`${from}_${to}`)
+		return spline!
 	}
 
 	async forward(inputs: number[]) {
@@ -167,22 +175,19 @@ export class Brain {
 	}
 
 	mutate() {
-		// if (Math.random() < 0.9) {
-		this.splines.forEach((s) => s.mutate())
-		// } else {
-		// 	const probabilty = Math.floor(Math.random() * 5)
-		// 	if (probabilty === 0) this.addNode()
-		// 	if (probabilty === 1) this.addEdge()
-		// 	if (probabilty === 2) this.removeNode()
-		// 	if (probabilty === 3) this.removeEdge()
-		// }
-		// if (this.splines.size !== this.dag.connections.size) {
-		// 	console.log('leak splines', this.splines.size, this.dag.connections.size)
-		// }
+		if (Math.random() < 0.9) {
+			this.splines.forEach((s) => s.mutate())
+		} else {
+			const probabilty = Math.floor(Math.random() * 5)
+			if (probabilty === 0) this.addNode()
+			if (probabilty === 1) this.addEdge()
+			if (probabilty === 2) this.removeNode()
+			if (probabilty === 3) this.removeEdge()
+		}
 	}
 
 	clone() {
-		const clone = new Brain(this.#inputSize, this.#outputSize)
+		const clone = new Brain(this.#inputSize, this.#outputSize, this.nControlPoints)
 		clone.dag = this.dag.clone(clone.dag.store)
 		clone.splines.clear()
 		for (const [id, spline] of this.splines) {
@@ -207,8 +212,14 @@ export class Brain {
 
 function sumAll(inputs: number[]) {
 	const sum = inputs.reduce((prev, current) => prev + current, 0)
-	return clamp(sum, 0, 1)
+	// const ma = max(inputs)
+	// const mi = min(inputs)
+	// return linearScale(sum, 0, inputs.length, 0, 1)
+	// return clamp(sum, 0, 1)
+	// return sigmoid(sum)
+	return relu(sum)
 	// return sum / inputs.length
+	// return Math.sin(sum)
 }
 function randomElement<T>(arr: T[]) {
 	const i = Math.floor(Math.random() * arr.length)

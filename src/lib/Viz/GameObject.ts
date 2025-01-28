@@ -1,11 +1,20 @@
+import { clamp } from '$lib/utils'
+
 export class GameObject {
 	x = 0
 	y = 0
 	angle = 0
+	domain: [number, number]
+
+	constructor(maxX: number, maxY: number) {
+		this.domain = [maxX, maxY]
+	}
 
 	forward(delta: number) {
 		this.x += delta * Math.cos(this.angle) // Cambia la posición en el eje x
 		this.y += delta * Math.sin(this.angle) // Cambia la posición en el eje y
+		this.x = clamp(this.x, 0, this.domain[0])
+		this.y = clamp(this.y, 0, this.domain[1])
 	}
 
 	// Método que te dice en que angulo está otro GameObject
