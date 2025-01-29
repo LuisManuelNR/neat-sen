@@ -8,10 +8,12 @@ export class Brain {
   biases: Map<string, number> = new Map()
   dag = new DAG({
     nodes: {
-      input: (xs: number[]) => xs[0],
+      input: (xs: number[]) => {
+        return xs[0]
+      },
       hidden: (inputs: number[], nodeid: string) => {
         const sum = inputs.reduce((p, c) => p + c, 0)
-        return sigmoid(sum + this.biases.get(nodeid)!)
+        return relu(sum + this.biases.get(nodeid)!)
       },
       output: (inputs: number[], nodeid: string) => {
         const sum = inputs.reduce((p, c) => p + c, 0)
@@ -37,6 +39,7 @@ export class Brain {
 
     for (let i = 0; i < outputSize; i++) {
       const oid = this.dag.addNode('output')
+      this.biases.set(oid, randomGaussian(0, 0.1))
       inputsIds.forEach((id) => {
         this.#connect(id, oid)
       })
@@ -46,15 +49,13 @@ export class Brain {
   #connect(from: string, to: string) {
     const connid = this.dag.connect('multiply', from, to)
     if (!connid) return
-    this.weights.set(connid, Math.random())
-    this.biases.set(to, Math.random())
+    this.weights.set(connid, randomGaussian(0, 0.1))
   }
 
   #disconnect(from: string, to: string) {
     const connid = this.dag.disconnect(from, to)
     if (!connid) return
     this.weights.delete(connid)
-    this.biases.delete(to)
   }
 
   addEdge() {
@@ -83,12 +84,9 @@ export class Brain {
     for (const [from, deps] of this.dag.graph) {
       if (deps.size > 1) {
         deps.forEach((to) => {
-          let iter = 0
           for (const [from2, deps2] of this.dag.graph) {
-            if (from2 !== from && deps2.has(to)) iter++
-            if (iter > 2) {
+            if (from2 !== from && deps2.has(to)) {
               candidates.push([from, to])
-              return
             }
           }
         })
@@ -117,6 +115,7 @@ export class Brain {
 
     // 4. Crear un nuevo nodo
     const nuevoNodo = this.dag.addNode('hidden')
+    this.biases.set(nuevoNodo, randomGaussian(0, 0.1))
 
     // 5. Establecer nuevas conexiones
     this.#connect(from, nuevoNodo)
@@ -146,16 +145,15 @@ export class Brain {
     })
 
     this.dag.removeNode(rNodeId)
+    this.biases.delete(rNodeId)
     for (const [connid] of this.weights) {
       if (connid.includes(rNodeId)) this.weights.delete(connid)
     }
-    this.biases.delete(rNodeId)
   }
 
   async forward(inputs: number[]) {
     if (inputs.length !== this.#inputSize) throw new Error('Inputs length must match')
     const pr = await this.dag.process(inputs)
-    // console.log(pr)
     const r: number[] = []
     for (const [id, { type, value }] of pr) {
       if (type === 'output') {
@@ -166,34 +164,35 @@ export class Brain {
   }
 
   mutate() {
-    const probabilty = Math.floor(Math.random() * 6)
+    const probabilty = Math.floor(Math.random() * 5)
     if (probabilty === 0) this.addNode()
     if (probabilty === 1) this.addEdge()
     if (probabilty === 2) this.removeNode()
     if (probabilty === 3) this.removeEdge()
     if (probabilty === 4) {
-      this.weights.forEach(w => {
+      this.weights.forEach((value, key, map) => {
         if (Math.random() < 0.5) {
-          w += randomGaussian(0, 0.1)
-          w = clamp(w, 0, 1)
+          value += randomGaussian(0, 0.01)
+          // value = clamp(value, 0, 1)
+          map.set(key, value) // Modificar el valor en el Map
         }
       })
-      this.biases.forEach(w => {
+      this.biases.forEach((value, key, map) => {
         if (Math.random() < 0.5) {
-          w += randomGaussian(0, 0.1)
-          w = clamp(w, 0, 1)
+          value += randomGaussian(0, 0.01)
+          // value = clamp(value, 0, 1)
+          map.set(key, value) // Modificar el valor en el Map
         }
       })
     }
   }
 
   clone() {
-    // const clone = new Brain(this.#inputSize, this.#outputSize)
-    // clone.dag = this.dag.clone(clone.dag.store)
-    // clone.weights = this.weights
-    // clone.biases = this.biases
-    // return clone
-    return this
+    const clone = new Brain(this.#inputSize, this.#outputSize)
+    clone.dag = this.dag.clone(clone.dag.store)
+    clone.weights = structuredClone(this.weights)
+    clone.biases = structuredClone(this.biases)
+    return clone
   }
   draw(width: number, height: number) {
     return this.dag.draw(width, height)

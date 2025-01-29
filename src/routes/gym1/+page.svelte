@@ -4,14 +4,14 @@
 	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
 	import { CLabel } from '@chasi/ui'
-	import { linearScale } from '@chasi/ui/utils'
+	import { linearScale, randomNumber } from '@chasi/ui/utils'
 	import { onMount } from 'svelte'
 
-	const realX = linspace(0, 1, 100)
+	const realX = linspace(-1, 1, 100)
 	const realY = realX.map((n) => realFunction(n))
 	let predictedY: number[][] = []
 	function realFunction(x: number) {
-		return linearScale(Math.sin(x * 10), -1, 1, 0, 1)
+		return Math.sin(x * 10)
 		return Math.sqrt(Math.pow(x, 2) * Math.sin(x * 3))
 		// return Math.pow(x, 2)
 	}
@@ -21,24 +21,13 @@
 		}
 
 		async train() {
-			const inputs = [Math.random()]
+			const inputs = [randomNumber(-1, 1)]
 			const outputs = await this.brain.forward(inputs)
 
 			const real = realFunction(inputs[0])
 			const error = Math.abs(outputs[0] - real)
-			const errorContribution = 1 / (1 + error)
-
-			const nodePenaltyFactor = 1 + this.brain.dag.nodes.size * 0.05
-			const connectionPenaltyFactor = 1 + this.brain.dag.connections.size * 0.05
-
-			// Reducir el impacto del errorContribution por los factores de penalización
-			const penalizedFitness = errorContribution / (nodePenaltyFactor * connectionPenaltyFactor)
-
-			// Fitness base para evitar valores bajos
-			const baseFitness = 0.1
-
-			// Actualizar fitness
-			this.fitness += baseFitness + penalizedFitness
+			this.fitness += 1 / (1 + error)
+			// this.fitness += 1 / (1 + this.brain.dag.nodes.size * this.brain.dag.connections.size)
 		}
 
 		async evaluate() {
@@ -62,16 +51,9 @@
 			predictedY = [await population[0].evaluate()]
 		}
 	}
-	// async function onUpdate(population: Agent[]) {
-	// 	predictedY = await population[0].evaluate()
-	// }
-	onMount(async () => {
-		const agent = new Agent()
-		predictedY = [await agent.evaluate()]
-	})
 </script>
 
-<Simulator population={1} {create} defaulEvolutionInterval={10} {onNewGen}>
+<Simulator population={50} {create} defaulEvolutionInterval={10} {onNewGen}>
 	<div class="d-grid gap-4">
 		<div>
 			<p>target</p>

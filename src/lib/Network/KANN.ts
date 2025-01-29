@@ -81,12 +81,9 @@ export class Brain {
 		for (const [from, deps] of this.dag.graph) {
 			if (deps.size > 1) {
 				deps.forEach((to) => {
-					let iter = 0
 					for (const [from2, deps2] of this.dag.graph) {
-						if (from2 !== from && deps2.has(to)) iter++
-						if (iter > 2) {
+						if (from2 !== from && deps2.has(to)) {
 							candidates.push([from, to])
-							return
 						}
 					}
 				})
