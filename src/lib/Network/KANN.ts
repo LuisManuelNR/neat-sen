@@ -1,39 +1,27 @@
 import { DAG } from '$lib/DAG'
-import { BSpline } from './BSpline'
+import { clamp, linspace, randomGaussian } from '$lib/utils'
 
-type BrainDag = {
-	nodes: {
-		input: (xs: number[]) => number
-		hidden: (inputs: number[]) => number
-		output: (inputs: number[]) => number
-	}
-	connections: {
-		identity: (x: number) => number
-		spline: (x: number, connid: any) => number
-	}
-}
 export class Brain {
 	#inputSize: number
 	#outputSize: number
 	splines: Map<string, BSpline> = new Map()
-	dag: DAG<BrainDag>
+	nControlPoints: number
+	dag = new DAG({
+		nodes: {
+			input: (xs) => xs[0],
+			hidden: sumAll,
+			output: sumAll
+		},
+		connections: {
+			identity: (x) => x,
+			spline: (x, connid) => this.splines.get(connid)!.evaluate(x)
+		}
+	})
 
-	constructor(inputSize: number, outputSize: number) {
+	constructor(inputSize: number, outputSize: number, nControlPoints = 10) {
+		this.nControlPoints = nControlPoints
 		this.#inputSize = inputSize
 		this.#outputSize = outputSize
-		this.dag = new DAG({
-			nodes: {
-				input: (xs) => xs[0],
-				hidden: sumAll,
-				output: sumAll
-			},
-			connections: {
-				identity: (x) => x,
-				spline: (x, connid) => {
-					return this.splines.get(connid)!.evaluate(x)
-				}
-			}
-		})
 
 		const inputsIds = []
 		for (let i = 0; i < inputSize; i++) {
@@ -44,14 +32,27 @@ export class Brain {
 		for (let i = 0; i < outputSize; i++) {
 			const oid = this.dag.addNode('output')
 			inputsIds.forEach((id) => {
-				this.#connectWithSpline(id, oid)
+				this.#connect(id, oid)
 			})
 		}
 	}
 
-	#connectWithSpline(from: string, to: string) {
-		this.splines.set(`${from}_${to}`, new BSpline(10, 2))
-		this.dag.connect('spline', from, to)
+	#connect(from: string, to: string, spline?: BSpline) {
+		const connid = this.dag.connect('spline', from, to)
+		if (!connid) return
+		if (spline) {
+			this.splines.set(connid, spline.clone())
+		} else {
+			this.splines.set(connid, new BSpline(this.nControlPoints, 2))
+		}
+	}
+
+	#disconnect(from: string, to: string) {
+		const connid = this.dag.disconnect(from, to)
+		if (!connid) return
+		const spline = this.splines.get(connid)
+		this.splines.delete(connid)
+		return spline!
 	}
 
 	addEdge() {
@@ -71,7 +72,7 @@ export class Brain {
 		}
 		if (available.length === 0) return
 		const [from, to] = randomElement(available)
-		this.#connectWithSpline(from, to)
+		this.#connect(from, to)
 	}
 
 	removeEdge() {
@@ -110,14 +111,14 @@ export class Brain {
 		const [from, to] = randomElement(conexiones)
 
 		// 3. Desconectar la conexión seleccionada
-		this.#disconnect(from, to)
+		const spline = this.#disconnect(from, to)
 
 		// 4. Crear un nuevo nodo
 		const nuevoNodo = this.dag.addNode('hidden')
 
 		// 5. Establecer nuevas conexiones
-		this.#connectWithSpline(from, nuevoNodo)
-		this.#connectWithSpline(nuevoNodo, to)
+		this.#connect(from, nuevoNodo, spline)
+		this.#connect(nuevoNodo, to)
 	}
 
 	removeNode() {
@@ -137,7 +138,7 @@ export class Brain {
 		incommingConnections.forEach((input) => {
 			outgoingConnections.forEach((output) => {
 				if (!this.dag.graph.get(input)!.has(output)) {
-					this.#connectWithSpline(input, output)
+					this.#connect(input, output)
 				}
 			})
 		})
@@ -146,11 +147,6 @@ export class Brain {
 		for (const [connid] of this.splines) {
 			if (connid.includes(rNodeId)) this.splines.delete(connid)
 		}
-	}
-
-	#disconnect(from: string, to: string) {
-		this.dag.disconnect(from, to)
-		this.splines.delete(`${from}_${to}`)
 	}
 
 	async forward(inputs: number[]) {
@@ -175,13 +171,10 @@ export class Brain {
 			if (probabilty === 2) this.removeNode()
 			if (probabilty === 3) this.removeEdge()
 		}
-		// if (this.splines.size !== this.dag.connections.size) {
-		// 	console.log('leak splines', this.splines.size, this.dag.connections.size)
-		// }
 	}
 
 	clone() {
-		const clone = new Brain(this.#inputSize, this.#outputSize)
+		const clone = new Brain(this.#inputSize, this.#outputSize, this.nControlPoints)
 		clone.dag = this.dag.clone(clone.dag.store)
 		clone.splines.clear()
 		for (const [id, spline] of this.splines) {
@@ -189,13 +182,135 @@ export class Brain {
 		}
 		return clone
 	}
+
+	draw(width: number, height: number) {
+		const g = this.dag.draw(width, height)
+		const splines = g.connectionPositions.map((c) => ({
+			spline: this.splines.get(`${c[4]}_${c[5]}`)!,
+			x: (c[0] + c[1]) / 2,
+			y: (c[2] + c[3]) / 2
+		}))
+		return {
+			...g,
+			splines
+		}
+	}
 }
 
 function sumAll(inputs: number[]) {
-	const sum = inputs.reduce((prev, current) => prev + current, 0)
-	return sum / inputs.length
+	const w = 1 / inputs.length
+	const sum = inputs.reduce((prev, current) => prev * w + current, 0)
+	return sum
 }
 function randomElement<T>(arr: T[]) {
 	const i = Math.floor(Math.random() * arr.length)
 	return arr[i]
+}
+
+
+class BSpline {
+	points: number[]
+	knots: number[] = []
+	degree
+
+	constructor(points: number[] | number, degree: number) {
+		this.points = Array.isArray(points)
+			? points
+			: Array(points)
+				.fill(0)
+				.map(() => Math.random())
+
+		this.degree = degree
+		this.#buildKnots()
+	}
+
+	plot(resolution = 100) {
+		const x = linspace(0, 1, resolution)
+		const y = x.map((v) => this.evaluate(v))
+		return { x, y }
+	}
+
+	// Evaluar el B-Spline usando las funciones base
+	evaluate(x: number): number {
+		const degree = this.degree
+		const knots = this.knots
+
+		// Remap `x` al dominio donde está definida la spline
+		const domain = [degree, knots.length - degree - 1]
+		const low = knots[domain[0]]
+		const high = knots[domain[1]]
+		x = x * (high - low) + low
+
+		if (x < low) x = low
+		if (x > high) x = high
+
+		// if (x < low || x > high) throw new Error(`x is out of bounds, x=${x}, [${low}, ${high}]`)
+
+		// Evaluar el valor usando las funciones base
+		return this.points.reduce((sum, p, i) => sum + p * this.basisFunction(i, degree, x), 0)
+	}
+
+	// Método para calcular las funciones base
+	plotBasis(resolution = 100): number[][] {
+		const basisFunctions: number[][] = []
+		const x = linspace(
+			this.knots[this.degree],
+			this.knots[this.knots.length - this.degree - 1],
+			resolution
+		)
+
+		// Calculamos cada función base
+		for (let i = 0; i < this.points.length; i++) {
+			const basis = x.map((xi) => this.basisFunction(i, this.degree, xi))
+			basisFunctions.push(basis)
+		}
+
+		return basisFunctions
+	}
+
+	// Función recursiva para calcular las funciones base
+	private basisFunction(i: number, degree: number, x: number): number {
+		const knots = this.knots
+
+		if (degree === 0) {
+			// Caso base: grado 0
+			return knots[i] <= x && x < knots[i + 1] ? 1 : 0
+		} else {
+			const leftDenom = knots[i + degree] - knots[i]
+			const left =
+				leftDenom !== 0 ? ((x - knots[i]) / leftDenom) * this.basisFunction(i, degree - 1, x) : 0
+
+			const rightDenom = knots[i + degree + 1] - knots[i + 1]
+			const right =
+				rightDenom !== 0
+					? ((knots[i + degree + 1] - x) / rightDenom) * this.basisFunction(i + 1, degree - 1, x)
+					: 0
+
+			return left + right
+		}
+	}
+
+	#buildKnots() {
+		this.knots = Array.from({ length: this.points.length + this.degree + 1 }, (_, i) => i)
+	}
+
+	mutate() {
+		// Mutación de los puntos existentes
+		this.points = this.points.map((c) => {
+			if (Math.random() > 0.1) {
+				// Mutación pequeña basada en una distribución gaussiana
+				c += randomGaussian(0, 0.01)
+				c = clamp(c, 0, 1) // Asegura que esté dentro de [0, 1]
+			} else if (Math.random() < 0.03) {
+				// Mutación más drástica: reemplazo aleatorio
+				c = Math.random()
+			}
+			return c
+		})
+	}
+
+	// Clonación de la spline
+	clone(): BSpline {
+		return new BSpline([...this.points], this.degree)
+	}
 }

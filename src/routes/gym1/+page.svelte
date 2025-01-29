@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { BSpline } from '$lib/KAN/BSpline'
 	import { Genome } from '$lib/NEAT/Simulator'
 	import { linspace } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
 	import { CLabel } from '@chasi/ui'
 	import { linearScale } from '@chasi/ui/utils'
+	import { onMount } from 'svelte'
 
 	const realX = linspace(0, 1, 100)
 	const realY = realX.map((n) => realFunction(n))
@@ -65,9 +65,13 @@
 	// async function onUpdate(population: Agent[]) {
 	// 	predictedY = await population[0].evaluate()
 	// }
+	onMount(async () => {
+		const agent = new Agent()
+		predictedY = [await agent.evaluate()]
+	})
 </script>
 
-<Simulator population={50} {create} defaulEvolutionInterval={10} {onNewGen}>
+<Simulator population={1} {create} defaulEvolutionInterval={10} {onNewGen}>
 	<div class="d-grid gap-4">
 		<div>
 			<p>target</p>

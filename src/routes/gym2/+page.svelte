@@ -16,7 +16,6 @@
 	target.x = w / 2 - 300
 	target.y = h / 2
 	let initialPos = { x: w / 2, y: h / 2 }
-	let allowrun = false
 	class Spider extends Genome {
 		speed = MAX_SPEED
 		prevDistance = 0
@@ -25,7 +24,7 @@
 		distanceToTarget = 0
 
 		constructor() {
-			super(3, 1, 7)
+			super(5, 1, 7)
 			this.go.x = initialPos.x
 			this.go.y = initialPos.y
 			this.speed = MAX_SPEED
@@ -34,50 +33,43 @@
 
 		async seek() {
 			const inputs = [
-				linearScale(target.y - this.go.y, -h, h, 0, 1),
-				linearScale(target.x - this.go.x, -w, w, 0, 1),
-				linearScale(this.go.angleTo(target), -Math.PI, Math.PI, 0, 1)
+				// linearScale(target.y - this.go.y, -h, h, 0, 1),
+				// linearScale(target.x - this.go.x, -w, w, 0, 1),
+				linearScale(this.go.x, 0, w, 0, 1),
+				linearScale(this.go.y, 0, h, 0, 1),
+				linearScale(target.x, 0, w, 0, 1),
+				linearScale(target.y, 0, h, 0, 1),
+				linearScale(this.go.angle, -Math.PI, Math.PI, 0, 1)
+				// linearScale(this.go.angleTo(target), -Math.PI, Math.PI, 0, 1)
 			]
 
 			const outputs = await this.brain.forward(inputs)
 
 			const [newAngle, newSpeed] = outputs
 
-			this.go.angle = linearScale(newAngle, 0, 1, -Math.PI, Math.PI)
+			this.go.angle += linearScale(newAngle, 0, 1, -1, 1)
+			// this.go.angle = linearScale(newAngle, 0, 1, -Math.PI, Math.PI)
 			// respuesta
 			// this.go.angle = this.go.angleTo(target)
 		}
 
 		async train() {
-			// this.go.forward(this.speed)
+			this.go.forward(this.speed)
 			await this.seek()
 			this.updateFitness()
 		}
 
 		async evaluate() {
-			// this.go.forward(this.speed)
+			this.go.forward(this.speed)
 			await this.seek()
 		}
 
 		updateFitness() {
 			const objective = this.go.angleTo(target)
 			const error = Math.abs(this.go.angle - objective)
-			// this.fitness += 1 / (1 + error)
-			// Fitness principal basado en el error del ángulo
-			const errorContribution = 2 / (1 + error)
-
-			// Penalizaciones por nodos y conexiones (en forma de divisores)
-			const nodePenaltyFactor = 1 + this.brain.dag.nodes.size * 0.05
-			const connectionPenaltyFactor = 1 + this.brain.dag.connections.size * 0.05
-
-			// Reducir el impacto del errorContribution por los factores de penalización
-			const penalizedFitness = errorContribution / (nodePenaltyFactor * connectionPenaltyFactor)
-
-			// Fitness base para evitar valores bajos
-			const baseFitness = 0.1
-
-			// Actualizar fitness
-			this.fitness += baseFitness + penalizedFitness
+			this.fitness += 2 / (1 + error)
+			this.fitness += 1 / (1 + this.go.distanceTo(target))
+			this.fitness += 1 / (1 + this.brain.dag.nodes.size * this.brain.dag.connections.size)
 		}
 	}
 
@@ -89,14 +81,12 @@
 	let frames = 0
 	async function onNewGen(population: Spider[]) {
 		spiders = population
-		// const n = linearScale(spiders[0].go.angle, -Math.PI, Math.PI, 0, 1)
-		// console.log(spiders[0].go.angle.toFixed(2), n.toFixed(2))
-		// frames++
-		// if (frames % 10 === 0) {
-		// initialPos = { x: randomNumber(50, w - 50), y: randomNumber(50, h - 50) }
-		// target.x = randomNumber(50, w - 50)
-		// target.y = randomNumber(50, h - 50)
-		// }
+		frames++
+		if (frames % 10 === 0) {
+			// initialPos = { x: randomNumber(50, w - 50), y: randomNumber(50, h - 50) }
+			target.x = randomNumber(50, w - 50)
+			target.y = randomNumber(50, h - 50)
+		}
 	}
 
 	async function onUpdate(population: Spider[]) {
@@ -106,16 +96,11 @@
 		} else {
 			spiders = [population[0]]
 		}
-		if (!allowrun) {
-			target.x += Math.sin(frames * 0.1) * 30
-			target.y += Math.cos(frames * 0.1) * 30
-		}
 	}
 
 	function handleClick(e: MouseEvent) {
 		const t = e.target as HTMLElement
 		if (!t.closest('.simulator')) return
-		allowrun = true
 		target.x = e.offsetX
 		target.y = e.offsetY
 	}
@@ -123,7 +108,7 @@
 
 <svelte:window on:click={handleClick} />
 
-<Simulator population={10} {create} defaulEvolutionInterval={200} {onUpdate} {onNewGen}>
+<Simulator population={50} {create} defaulEvolutionInterval={200} {onUpdate} {onNewGen}>
 	<CLabel label="show all">
 		<input type="checkbox" on:change={() => (showAll = !showAll)} />
 	</CLabel>

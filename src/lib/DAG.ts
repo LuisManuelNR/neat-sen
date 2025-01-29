@@ -51,6 +51,7 @@ export class DAG<T extends DagStore> {
 		this.connections.set(id, type)
 		this.graph.get(from)!.add(to)
 		this.sort()
+		return id
 	}
 
 	disconnect(from: string, to: string) {
@@ -60,6 +61,7 @@ export class DAG<T extends DagStore> {
 		const tconn = this.graph.get(from)!
 		tconn.delete(to)
 		this.sort()
+		return id
 	}
 
 	async process(inputs: any[]) {

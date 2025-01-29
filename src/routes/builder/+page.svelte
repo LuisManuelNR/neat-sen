@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Dag from '$lib/Dag.svelte'
-	import { Brain } from '$lib/KAN/Brain'
+	import { Brain } from '$lib/Network/MLPN'
 	import { runEveryFrames } from '$lib/utils'
 	import Network from '$lib/Viz/Network.svelte'
 	import { randomNumber, runOnFrames } from '@chasi/ui/utils'
@@ -8,11 +8,13 @@
 	let inputsSize = 2
 	let outputsSize = 1
 	let network = new Brain(inputsSize, outputsSize)
+	let inputs = genRandomInputs()
 	let forwardResult: number[] = []
-
+	function genRandomInputs() {
+		return Array.from({ length: inputsSize }, () => Math.random())
+	}
 	async function handleForward() {
-		// const inputs = Array.from({ length: inputsSize }, () => Math.random())
-		forwardResult = await network.forward([1, 1])
+		forwardResult = await network.forward(inputs)
 		network = network
 	}
 
@@ -20,6 +22,7 @@
 		inputsSize = Math.floor(randomNumber(1, 5))
 		outputsSize = Math.floor(randomNumber(1, 5))
 		network = new Brain(inputsSize, outputsSize)
+		inputs = genRandomInputs()
 	}
 
 	let stopmutation: (() => void) | undefined
@@ -32,7 +35,7 @@
 			() => 60,
 			async () => {
 				network.mutate()
-				forwardResult = await network.forward([1, 1])
+				forwardResult = await network.forward(inputs)
 				network = network
 			}
 		)

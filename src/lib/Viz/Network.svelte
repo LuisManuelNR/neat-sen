@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { Brain } from '$lib/KAN/Brain'
+	import type { Brain } from '$lib/Network/MLPN'
 	import { CCircle, CGraph, CPath } from '@chasi/ui/graph'
 	import { randomColor } from '@chasi/ui/utils'
-	import Spline from './Spline.svelte'
+	// import Spline from './Spline.svelte'
 
 	export let network: Brain
 	export let height = 500
@@ -20,11 +20,11 @@
 
 {#if graph}
 	<div class="s-6">
-		<div class="d-flex gap-1 flex-wrap">
+		<!-- <div class="d-flex gap-1 flex-wrap">
 			{#each graph.splines as { spline, x, y }}
 				<Spline {spline}></Spline>
 			{/each}
-		</div>
+		</div> -->
 		<CGraph {height}>
 			{#each graph.connectionPositions as [x1, x2, y1, y2]}
 				<CPath
