@@ -1,8 +1,11 @@
 <script lang="ts">
-	import type { Brain } from '$lib/Network/MLPN'
+	// import type { Brain } from '$lib/Network/MLPN'
+	// import type { Brain } from '$lib/Network/REPINGA'
+	// import type { Brain } from '$lib/Network/KANN'
+	import type { Brain } from '$lib/Network/RBF_KANN'
 	import { CCircle, CGraph, CPath } from '@chasi/ui/graph'
-	import { randomColor } from '@chasi/ui/utils'
-	// import Spline from './Spline.svelte'
+	import { linearScale, randomColor } from '@chasi/ui/utils'
+	import TFunction from './TFunction.svelte'
 
 	export let network: Brain
 	export let height = 500
@@ -15,16 +18,19 @@
 	}
 
 	$: graph = !import.meta.env.SSR && network.draw(width, height)
-	const R = 10
+
+	function nodeSize(n?: number) {
+		return n ? linearScale(n, 0, 1, 5, 10) : 4
+	}
 </script>
 
 {#if graph}
 	<div class="s-6">
-		<!-- <div class="d-flex gap-1 flex-wrap">
-			{#each graph.splines as { spline, x, y }}
-				<Spline {spline}></Spline>
+		<div class="d-flex gap-1 flex-wrap">
+			{#each graph.tfunction as { fn, x, y }}
+				<TFunction {fn}></TFunction>
 			{/each}
-		</div> -->
+		</div>
 		<CGraph {height}>
 			{#each graph.connectionPositions as [x1, x2, y1, y2]}
 				<CPath
@@ -42,7 +48,7 @@
 					domainY={[height, 0]}
 					{x}
 					{y}
-					r={R}
+					r={nodeSize(network.lastResult.get(id))}
 					strokeWidth="0"
 					color={nodeType[type]}
 				/>

@@ -53,10 +53,6 @@ export function randomGaussian(mean: number, stdDev: number): number {
 	return z0 * stdDev + mean
 }
 
-export function randomIndex(arr: Array<any>) {
-	return randomNumber(0, arr.length)
-}
-
 export function clamp(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, value))
 }
@@ -90,6 +86,15 @@ export function sigmoidAct(x: number, getDerivative: boolean = false): number {
 	}
 	const sigmoid = sigmoidAct(x, false) // Calcula el valor del sigmoide
 	return sigmoid * (1 - sigmoid)
+}
+
+export function randomElement<T>(arr: T[]) {
+	const i = Math.floor(Math.random() * arr.length)
+	return arr[i]
+}
+export function randomIndex<T>(arr: T[]) {
+	const i = Math.floor(Math.random() * arr.length)
+	return i
 }
 
 export class Vec2D {
@@ -160,7 +165,6 @@ export function runEveryFrames(
 	callback: () => void | Promise<void>
 ): () => void {
 	let stop = false // Bandera para detener el loop
-	let isRunning = false // Controla si `callback` está ejecutándose
 
 	async function loop() {
 		if (stop) return // Si se detiene, salir del loop
@@ -169,13 +173,7 @@ export function runEveryFrames(
 
 		// Ejecuta `callback` el número de veces indicado por `fnFrames`
 		for (let i = 0; i < executionsPerFrame; i++) {
-			if (isRunning) break // No ejecutar más si un callback está aún corriendo
-			isRunning = true
-			try {
-				await callback() // Espera a que el callback termine
-			} finally {
-				isRunning = false // Permite futuras ejecuciones
-			}
+			await callback() // Espera a que el callback termine
 		}
 
 		// Llama al siguiente frame

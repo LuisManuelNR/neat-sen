@@ -41,6 +41,7 @@ export class GameObject {
 		const dx = target.x - this.x
 		const dy = target.y - this.y
 		// Distancia euclidiana
-		return Math.sqrt(dx * dx + dy * dy)
+		const r = Math.sqrt(dx * dx + dy * dy)
+		return Number.isNaN(r) ? 0 : r
 	}
 }

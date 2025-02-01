@@ -1,24 +1,25 @@
-// import { Brain } from '$lib/KAN/Brain'
+// import { Brain } from '$lib/Network/REPINGA'
+// import { Brain } from '$lib/Network/KANNS'
 // import { Brain } from '$lib/Network/KANN'
-import { Brain } from '$lib/Network/MLPN'
+import { Brain } from '$lib/Network/RBF_KANN'
+// import { Brain } from '$lib/Network/MLPN'
 
 export class Genome {
 	brain: Brain
 	fitness = 0
-	constructor(input: number, output: number, nControlPoints = 10) {
+	constructor(input: number, output: number) {
 		this.brain = new Brain(input, output)
 	}
 
-	async train() { }
+	async train() {}
 
-	predict() { }
+	predict() {}
 }
 
 export type CreateFunction<T> = () => T
 export class Simulation<T extends Genome> {
 	population: T[]
 	#populationSize: number
-	#generation: number = 0
 	#create: CreateFunction<T>
 
 	constructor(populationSize: number, create: CreateFunction<T>) {
@@ -33,7 +34,6 @@ export class Simulation<T extends Genome> {
 	}
 
 	evolve() {
-		this.#generation++
 		this.#selection() // Seleccionar los mejores individuos y mutar
 	}
 
@@ -97,9 +97,5 @@ export class Simulation<T extends Genome> {
 			selected.push(winner)
 		}
 		return selected
-	}
-	// Obtener la generación actual
-	getGeneration(): number {
-		return this.#generation
 	}
 }

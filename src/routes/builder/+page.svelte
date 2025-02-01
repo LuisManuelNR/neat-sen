@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Dag from '$lib/Dag.svelte'
-	// import { Brain } from '$lib/Network/KANN'
-	import { Brain } from '$lib/Network/MLPN'
+	import { Brain } from '$lib/Network/KANN'
+	// import { Brain } from '$lib/Network/MLPN'
 	import { runEveryFrames } from '$lib/utils'
 	import Network from '$lib/Viz/Network.svelte'
 	import { randomNumber, runOnFrames } from '@chasi/ui/utils'

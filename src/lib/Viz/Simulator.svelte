@@ -2,7 +2,7 @@
 	import { runEveryFrames } from '$lib/utils'
 
 	import { Simulation, type CreateFunction, type Genome } from '$lib/NEAT/Simulator'
-	import { max, min, runOnFrames } from '@chasi/ui/utils'
+	import { max, min } from '@chasi/ui/utils'
 	import { CLabel } from '@chasi/ui'
 	import { onMount } from 'svelte'
 	import Network from '$lib/Viz/Network.svelte'
@@ -12,8 +12,8 @@
 	export let population: number
 	export let create: CreateFunction<T>
 	export let defaulEvolutionInterval = 200
-	export let onNewGen: (population: T[]) => void | Promise<void> = () => {}
-	export let onUpdate: (population: T[]) => void | Promise<void> = () => {}
+	export let onNewGen: (population: T[], best: T) => void | Promise<void> = () => {}
+	export let onUpdate: (population: T[], best: T) => void | Promise<void> = () => {}
 
 	let evolutionInterval = defaulEvolutionInterval
 	let simulate = false
@@ -23,11 +23,12 @@
 	let globalFitness: number[] = []
 
 	const simulation = new Simulation(population, create)
-
+	let best = create()
 	async function update() {
 		if (simulate) {
 			frames++
 			await Promise.all(simulation.population.map((s) => s.train()))
+			await onUpdate(simulation.population, best)
 			if (frames % evolutionInterval === 0) {
 				let genFitness = simulation.population.reduce((p, c) => c.fitness + p, 0)
 				genFitness /= population
@@ -37,11 +38,14 @@
 					globalFitness.shift()
 				}
 				globalFitness = globalFitness
-				simulation.population = simulation.population
-				await onNewGen(simulation.population)
+				if (simulation.population[0].fitness) {
+					best.brain = simulation.population[0].brain.clone()
+					best.fitness = simulation.population[0].fitness
+					best = best
+				}
+				await onNewGen(simulation.population, best)
 				simulation.evolve()
 			}
-			await onUpdate(simulation.population)
 		} else {
 			frames = 0
 		}
@@ -88,7 +92,7 @@
 		charts={[globalFitness]}
 		height={400}
 	></LineChart>
-	<Network network={simulation.population[0].brain}></Network>
+	<Network network={best.brain}></Network>
 </div>
 
 <style>

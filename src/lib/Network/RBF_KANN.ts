@@ -1,5 +1,6 @@
 import { DAG } from '$lib/DAG'
 import { linspace, randomElement } from '$lib/utils'
+import { RBF } from './RBF'
 import { BSpline } from './Spline'
 
 function theta(inputs: number[]) {
@@ -10,7 +11,7 @@ function theta(inputs: number[]) {
 export class Brain {
 	#inputSize: number
 	#outputSize: number
-	splines: Map<string, BSpline> = new Map()
+	tfunction: Map<string, RBF> = new Map()
 	lastResult: Map<string, number> = new Map()
 	dag = new DAG({
 		nodes: {
@@ -20,7 +21,7 @@ export class Brain {
 		},
 		connections: {
 			identity: (x) => x,
-			spline: (x, connid) => this.splines.get(connid)!.evaluate(x)
+			spline: (x, connid) => this.tfunction.get(connid)!.evaluate(x)
 		}
 	})
 
@@ -42,21 +43,21 @@ export class Brain {
 		}
 	}
 
-	#connect(from: string, to: string, spline?: BSpline) {
+	#connect(from: string, to: string, tfunc?: RBF) {
 		const connid = this.dag.connect('spline', from, to)
 		if (!connid) return
-		if (spline) {
-			this.splines.set(connid, spline.clone())
+		if (tfunc) {
+			this.tfunction.set(connid, tfunc.clone())
 		} else {
-			this.splines.set(connid, new BSpline(4, 3))
+			this.tfunction.set(connid, new RBF([0, 1]))
 		}
 	}
 
 	#disconnect(from: string, to: string) {
 		const connid = this.dag.disconnect(from, to)
 		if (!connid) return
-		const spline = this.splines.get(connid)
-		this.splines.delete(connid)
+		const spline = this.tfunction.get(connid)
+		this.tfunction.delete(connid)
 		return spline!
 	}
 
@@ -146,8 +147,8 @@ export class Brain {
 		})
 
 		this.dag.removeNode(rNodeId)
-		for (const [connid] of this.splines) {
-			if (connid.includes(rNodeId)) this.splines.delete(connid)
+		for (const [connid] of this.tfunction) {
+			if (connid.includes(rNodeId)) this.tfunction.delete(connid)
 		}
 	}
 
@@ -165,38 +166,40 @@ export class Brain {
 	}
 
 	mutate() {
-		if (Math.random() < 0.9) {
-			this.splines.forEach((s) => s.mutate())
-		} else {
-			const probabilty = Math.floor(Math.random() * 6)
-			if (probabilty === 0) this.addNode()
-			if (probabilty === 1) this.addEdge()
-			if (probabilty === 2) this.removeNode()
-			if (probabilty === 3) this.removeEdge()
-			// if (probabilty === 4) this.splines.forEach((s) => s.mutate())
-		}
+		// for (let i = 0; i < 10; i++) {
+		// if (Math.random() < 0.9) {
+		// 	this.tfunction.forEach((s) => s.mutate())
+		// } else {
+		const probabilty = Math.floor(Math.random() * 6)
+		if (probabilty === 0) this.addNode()
+		if (probabilty === 1) this.addEdge()
+		if (probabilty === 2) this.removeNode()
+		if (probabilty === 3) this.removeEdge()
+		if (probabilty === 4) this.tfunction.forEach((s) => s.mutate())
+		// }
+		// }
 	}
 
 	clone() {
 		const clone = new Brain(this.#inputSize, this.#outputSize)
 		clone.dag = this.dag.clone(clone.dag.store)
-		clone.splines.clear()
-		for (const [id, spline] of this.splines) {
-			clone.splines.set(id, spline.clone())
+		clone.tfunction.clear()
+		for (const [id, spline] of this.tfunction) {
+			clone.tfunction.set(id, spline.clone())
 		}
 		return clone
 	}
 
 	draw(width: number, height: number) {
 		const g = this.dag.draw(width, height)
-		const splines = g.connectionPositions.map((c) => ({
-			spline: this.splines.get(`${c[4]}_${c[5]}`)!,
+		const tfunction = g.connectionPositions.map((c) => ({
+			fn: this.tfunction.get(`${c[4]}_${c[5]}`)!,
 			x: (c[0] + c[1]) / 2,
 			y: (c[2] + c[3]) / 2
 		}))
 		return {
 			...g,
-			splines
+			tfunction
 		}
 	}
 }

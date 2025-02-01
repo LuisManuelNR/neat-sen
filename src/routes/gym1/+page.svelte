@@ -4,30 +4,31 @@
 	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
 	import { CLabel } from '@chasi/ui'
-	import { linearScale, randomNumber } from '@chasi/ui/utils'
-	import { onMount } from 'svelte'
+	import { linearScale, max, min, randomNumber } from '@chasi/ui/utils'
 
-	const realX = linspace(-1, 1, 100)
-	const realY = realX.map((n) => realFunction(n))
+	$: realX = linspace(0, 1, 100)
+	$: realY = realX.map((n) => realFunction(n))
+	$: domainX = [min(realX), max(realX)]
+	$: domainY = [min(realY), max(realY)]
+
 	let predictedY: number[][] = []
+
 	function realFunction(x: number) {
-		return Math.sin(x * 10)
-		return Math.sqrt(Math.pow(x, 2) * Math.sin(x * 3))
-		// return Math.pow(x, 2)
+		return linearScale(Math.sin(10 * x), -1, 1, 0, 1)
 	}
 	class Agent extends Genome {
 		constructor() {
-			super(1, 1, 10)
+			super(1, 1)
 		}
 
 		async train() {
-			const inputs = [randomNumber(-1, 1)]
-			const outputs = await this.brain.forward(inputs)
-
-			const real = realFunction(inputs[0])
+			const input = randomNumber(domainX[0], domainX[1])
+			const outputs = await this.brain.forward([input])
+			const real = realFunction(input)
 			const error = Math.abs(outputs[0] - real)
 			this.fitness += 1 / (1 + error)
-			// this.fitness += 1 / (1 + this.brain.dag.nodes.size * this.brain.dag.connections.size)
+			this.fitness += 1 / (1 + this.brain.dag.nodes.size * 0.001)
+			this.fitness += 1 / (1 + this.brain.dag.connections.size * 0.001)
 		}
 
 		async evaluate() {
@@ -43,21 +44,24 @@
 	function create() {
 		return new Agent()
 	}
+
 	let showAll = false
-	async function onNewGen(population: Agent[]) {
+	async function onNewGen(population: Agent[], best: Agent) {
 		if (showAll) {
 			predictedY = await Promise.all(population.map((p) => p.evaluate()))
 		} else {
-			predictedY = [await population[0].evaluate()]
+			predictedY = [await best.evaluate()]
 		}
 	}
+
+	async function onUpdate(population: Agent[], best: Agent) {}
 </script>
 
-<Simulator population={50} {create} defaulEvolutionInterval={10} {onNewGen}>
+<Simulator population={50} {create} defaulEvolutionInterval={40} {onNewGen} {onUpdate}>
 	<div class="d-grid gap-4">
 		<div>
 			<p>target</p>
-			<LineChart charts={[realY]} height={400}></LineChart>
+			<LineChart {domainX} {domainY} charts={[realY]} height={400}></LineChart>
 		</div>
 		<div>
 			<div class="d-flex align-center gap-2">
@@ -66,7 +70,7 @@
 					<input type="checkbox" on:change={() => (showAll = !showAll)} />
 				</CLabel>
 			</div>
-			<LineChart charts={predictedY} height={400}></LineChart>
+			<LineChart {domainX} {domainY} charts={predictedY} height={400}></LineChart>
 		</div>
 	</div>
 </Simulator>

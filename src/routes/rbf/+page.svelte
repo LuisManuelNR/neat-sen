@@ -1,16 +1,14 @@
 <script lang="ts">
-	import { BSpline } from '$lib/Network/Spline'
+	import { RBF } from '$lib/Network/RBF'
 	import { CLabel } from '@chasi/ui'
-	import { runOnFrames } from '@chasi/ui/utils'
+	import { max, runOnFrames } from '@chasi/ui/utils'
 	import { linspace } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
-	import { CGraph, CPath } from '@chasi/ui/graph'
-	import Spline from '$lib/Viz/Spline.svelte'
 
 	const DOMAIN = [0, 1] as [number, number]
-	let spline = new BSpline(4, 3)
+	let rbf = new RBF(DOMAIN)
 	const x = linspace(DOMAIN[0], DOMAIN[1], 1000)
-	$: y = x.map((v) => spline.evaluate(v))
+	$: y = x.map((v) => rbf.evaluate(v))
 
 	let stop: (() => void) | undefined
 
@@ -20,12 +18,13 @@
 			stop = undefined
 			return
 		}
-		stop = runOnFrames(60, () => {
-			spline.mutate()
-			spline = spline
+		stop = runOnFrames(120, () => {
+			rbf.mutate()
+			rbf = rbf
 		})
 	}
-	$: basis = spline.plotBasis()
+	// $: basis = rbf.plotBasis()
+	$: maxy = max(y)
 </script>
 
 <div class="d-grid gap-4 graph mx-auto">
@@ -35,17 +34,16 @@
 				<input type="checkbox" on:change={toggleMutation} />
 			</CLabel>
 		</div>
-
-		<LineChart charts={[y]} height={500}></LineChart>
+		<p>center: {rbf.center}</p>
+		<p>sigma: {rbf.sigma}</p>
+		<p>weight: {rbf.weight}</p>
+		<p class:error={maxy < DOMAIN[0] || maxy > DOMAIN[1]}>max y: {maxy}</p>
 	</div>
-	<div>
-		<p>Basis functions</p>
-		<LineChart charts={basis} height={500}></LineChart>
-	</div>
+	<LineChart domainX={DOMAIN} domainY={DOMAIN} charts={[y]} height={500}></LineChart>
 </div>
 
 <style>
 	.d-grid {
-		--xs-columns: 1fr 1fr;
+		--xs-columns: 0.4fr 1fr;
 	}
 </style>
