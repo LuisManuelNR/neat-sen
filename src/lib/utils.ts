@@ -1,5 +1,13 @@
 import { isInside, linearScale, randomNumber } from '@chasi/ui/utils'
 
+export function identity(x: number) {
+	return x
+}
+
+export function sum(x: number[]) {
+	return x.reduce((p, c) => p + c, 0)
+}
+
 export function linspace(min: number, max: number, N: number): number[] {
 	const result: number[] = []
 	const step = (max - min) / (N - 1) // Calcular el tamaño del paso
@@ -88,13 +96,18 @@ export function sigmoidAct(x: number, getDerivative: boolean = false): number {
 	return sigmoid * (1 - sigmoid)
 }
 
-export function randomElement<T>(arr: T[]) {
+export function randomElement<T>(arr: readonly T[]) {
 	const i = Math.floor(Math.random() * arr.length)
 	return arr[i]
 }
-export function randomIndex<T>(arr: T[]) {
+
+export function randomIndex(arr: readonly any[]) {
 	const i = Math.floor(Math.random() * arr.length)
 	return i
+}
+
+export function random(min = 0, max = 1) {
+	return Math.random() * (max - min) + min
 }
 
 export class Vec2D {

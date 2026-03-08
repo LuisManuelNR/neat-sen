@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Genome } from '$lib/NEAT/Simulator'
+	import { RBF_Brain } from '$lib/Network'
 	import { linspace } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
@@ -16,28 +16,22 @@
 	function realFunction(x: number) {
 		return linearScale(Math.sin(10 * x), -1, 1, 0, 1)
 	}
-	class Agent extends Genome {
-		constructor() {
-			super(1, 1)
-		}
+	class Agent {
+		brain = new RBF_Brain(1, 1)
 
-		async train() {
+		train() {
 			const input = randomNumber(domainX[0], domainX[1])
-			const outputs = await this.brain.forward([input])
+			const outputs = this.brain.propagate([input])
 			const real = realFunction(input)
 			const error = Math.abs(outputs[0] - real)
-			this.fitness += 1 / (1 + error)
-			this.fitness += 1 / (1 + this.brain.dag.nodes.size * 0.001)
-			this.fitness += 1 / (1 + this.brain.dag.connections.size * 0.001)
+			this.brain.fitness += 1 / (1 + error * error)
 		}
 
-		async evaluate() {
-			return Promise.all(
-				realX.map(async (n) => {
-					const r = await this.brain.forward([n])
-					return r[0]
-				})
-			)
+		evaluate() {
+			return realX.map((n) => {
+				const r = this.brain.propagate([n])
+				return r[0]
+			})
 		}
 	}
 
@@ -46,15 +40,15 @@
 	}
 
 	let showAll = false
-	async function onNewGen(population: Agent[], best: Agent) {
+	function onNewGen(population: Agent[], best: Agent) {
 		if (showAll) {
-			predictedY = await Promise.all(population.map((p) => p.evaluate()))
+			predictedY = population.map((p) => p.evaluate())
 		} else {
-			predictedY = [await best.evaluate()]
+			predictedY = [best.evaluate()]
 		}
 	}
 
-	async function onUpdate(population: Agent[], best: Agent) {}
+	function onUpdate(population: Agent[], best: Agent) {}
 </script>
 
 <Simulator population={50} {create} defaulEvolutionInterval={40} {onNewGen} {onUpdate}>

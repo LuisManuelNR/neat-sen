@@ -1,7 +1,5 @@
 <script lang="ts">
-	import Dag from '$lib/Dag.svelte'
-	import { Brain } from '$lib/Network/KANN'
-	// import { Brain } from '$lib/Network/MLPN'
+	import { Brain } from '$lib/Network'
 	import { runEveryFrames } from '$lib/utils'
 	import Network from '$lib/Viz/Network.svelte'
 	import { randomNumber, runOnFrames } from '@chasi/ui/utils'
@@ -9,80 +7,74 @@
 	let inputsSize = 2
 	let outputsSize = 1
 	let network = new Brain(inputsSize, outputsSize)
-	let inputs = genRandomInputs()
 	let forwardResult: number[] = []
-	function genRandomInputs() {
-		return Array.from({ length: inputsSize }, () => Math.random())
-	}
-	async function handleForward() {
-		forwardResult = await network.forward(inputs)
-		network = network
-	}
 
-	function randomizeNetwork() {
-		inputsSize = Math.floor(randomNumber(1, 5))
-		outputsSize = Math.floor(randomNumber(1, 5))
-		network = new Brain(inputsSize, outputsSize)
-		inputs = genRandomInputs()
-	}
-
-	let stopmutation: (() => void) | undefined
-	function hanldeStop() {
-		if (stopmutation) stopmutation()
-		stopmutation = undefined
-	}
-	function handleMutate() {
-		stopmutation = runEveryFrames(
-			() => 60,
-			async () => {
-				network.mutate()
-				forwardResult = await network.forward(inputs)
-				network = network
-			}
-		)
-	}
 	function addNode() {
-		network.addNode()
-		network = network
-	}
-	function removeNode() {
-		network.removeNode()
+		network.node()
 		network = network
 	}
 	function addConnection() {
-		network.addEdge()
+		network.edge()
 		network = network
 	}
-	function removeConnection() {
-		network.removeEdge()
+	function randomize() {
+		inputsSize = Math.floor(randomNumber(1, 5))
+		outputsSize = Math.floor(randomNumber(1, 5))
+		network = new Brain(inputsSize, outputsSize)
+	}
+
+	function mutate() {
+		network.mutate()
 		network = network
-		console.log(network)
+	}
+	function propagate() {
+		const repinga = Array(inputsSize).fill(2)
+		forwardResult = network.propagate(repinga)
+		network = network
+
+		// const clone = network.clone()
+		// console.log(clone, network)
+		// console.log('tienen la misma referencia?', clone === network)
+		// console.log('Son la misma instancia?', clone instanceof RBF_Brain)
+		// const clonefff = clone.propagate(repinga)
+		// console.log('PROPAGATE ES IGUAL?', clonefff, forwardResult)
+	}
+	let stopSimulation: number | undefined
+	let i = 0
+	function stop() {
+		if (stopSimulation) clearInterval(stopSimulation)
+		stopSimulation = undefined
+		i = 0
+	}
+	function simulate() {
+		stopSimulation = setInterval(() => {
+			i++
+			const repinga = Array(inputsSize).fill(Math.sin(i))
+			forwardResult = network.propagate(repinga)
+			network = network
+		}, 200)
 	}
 </script>
 
 <div class="viz d-grid gap-4">
 	<div class="card d-grid gap-4">
-		<button class="btn" on:click={handleForward}> forward </button>
 		<button class="btn" on:click={addNode}> add node </button>
-		<button class="btn" on:click={removeNode}> remove node </button>
 		<button class="btn" on:click={addConnection}> add connection </button>
-		<button class="btn" on:click={removeConnection}> remove connection </button>
-		<button class="btn" on:click={randomizeNetwork}> randomize </button>
-		{#if stopmutation}
-			<button class="btn error" on:click={hanldeStop}> stop mutation </button>
+		<button class="btn" on:click={randomize}> randomize </button>
+		<button class="btn" on:click={mutate}> mutate </button>
+		<button class="btn" on:click={propagate}> propagate </button>
+		{#if stopSimulation}
+			<button class="btn error" on:click={stop}> stop </button>
 		{:else}
-			<button class="btn success" on:click={handleMutate}> mutate </button>
+			<button class="btn success" on:click={simulate}> simulate </button>
 		{/if}
-		<p>forward: {JSON.stringify(forwardResult, null, 2)}</p>
 	</div>
 	<Network {network}></Network>
 </div>
+<p>forward: {JSON.stringify(forwardResult, null, 2)}</p>
 
 <style>
-	.card {
-		align-content: start;
-	}
 	.viz {
-		--sm-columns: auto 1fr;
+		--sm-columns: 200px 1fr;
 	}
 </style>

@@ -1,19 +1,19 @@
 <script lang="ts">
 	import { runEveryFrames } from '$lib/utils'
 
-	import { Simulation, type CreateFunction, type Genome } from '$lib/NEAT/Simulator'
+	import { Simulation, type CreateFunction, type Agent } from '$lib/NEAT/Simulator'
+	import type { Brain } from '$lib/Network'
 	import { max, min } from '@chasi/ui/utils'
 	import { CLabel } from '@chasi/ui'
 	import { onMount } from 'svelte'
 	import Network from '$lib/Viz/Network.svelte'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 
-	type T = $$Generic<Genome>
 	export let population: number
-	export let create: CreateFunction<T>
+	export let create: CreateFunction<Agent>
 	export let defaulEvolutionInterval = 200
-	export let onNewGen: (population: T[], best: T) => void | Promise<void> = () => {}
-	export let onUpdate: (population: T[], best: T) => void | Promise<void> = () => {}
+	export let onNewGen: (population: Agent[], best: Agent) => void | Promise<void> = () => {}
+	export let onUpdate: (population: Agent[], best: Agent) => void | Promise<void> = () => {}
 
 	let evolutionInterval = defaulEvolutionInterval
 	let simulate = false
@@ -24,11 +24,11 @@
 
 	const simulation = new Simulation(population, create)
 	let best = create()
-	async function update() {
+	function update() {
 		if (simulate) {
 			frames++
-			await Promise.all(simulation.population.map((s) => s.train()))
-			await onUpdate(simulation.population, best)
+			simulation.population.map((s) => s.train())
+			onUpdate(simulation.population, best)
 			if (frames % evolutionInterval === 0) {
 				let genFitness = simulation.population.reduce((p, c) => c.fitness + p, 0)
 				genFitness /= population
@@ -39,11 +39,11 @@
 				}
 				globalFitness = globalFitness
 				if (simulation.population[0].fitness) {
-					best.brain = simulation.population[0].brain.clone()
+					best = simulation.population[0].clone()
 					best.fitness = simulation.population[0].fitness
 					best = best
 				}
-				await onNewGen(simulation.population, best)
+				onNewGen(simulation.population, best)
 				simulation.evolve()
 			}
 		} else {
