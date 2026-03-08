@@ -9,7 +9,7 @@ export class BSpline implements Cell {
 	value: number = 0
 	points: number[] = []
 
-	constructor(points?: number[]) {
+	constructor({ points }: { points?: number[] } = {}) {
 		this.points = points || Array(POINTS).fill(Math.random())
 	}
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { RBF_Brain } from '$lib/Network'
+	import { Brain } from '$lib/Network'
 	import { linspace } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
@@ -17,10 +17,11 @@
 		return linearScale(Math.sin(10 * x), -1, 1, 0, 1)
 	}
 	class Agent {
-		brain = new RBF_Brain(1, 1)
+		brain = new Brain(1, 1)
 
 		train() {
-			const input = randomNumber(domainX[0], domainX[1])
+			// const input = randomNumber(domainX[0], domainX[1])
+			const input = Math.random()
 			const outputs = this.brain.propagate([input])
 			const real = realFunction(input)
 			const error = Math.abs(outputs[0] - real)
@@ -41,6 +42,7 @@
 
 	let showAll = false
 	function onNewGen(population: Agent[], best: Agent) {
+		console.log(best)
 		if (showAll) {
 			predictedY = population.map((p) => p.evaluate())
 		} else {

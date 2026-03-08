@@ -36,11 +36,15 @@ export class Simulation<T extends Agent> {
 		// top 10%
 		const elitistas = Math.floor(0.1 * half.length)
 		// Selecciona los elitistas
-		const elitists = half.slice(0, elitistas)
+		const elitists = half.slice(0, elitistas).map((e) => {
+			const agent = this.#create()
+			agent.brain = e.brain.clone()
+			return agent
+		})
 
-		// la suma de todos a 1
-		this.#normalizeFitness(half)
-		const selected = this.#pickAndFill(half, this.#populationSize)
+		const others = half.slice(elitistas, half.length)
+		this.#normalizeFitness(others)
+		const selected = this.#pickAndFill(others, this.#populationSize - elitistas)
 
 		// Actualiza la población combinando elitistas, seleccionados y nuevos individuos
 		this.population = [...elitists, ...selected]
@@ -50,10 +54,10 @@ export class Simulation<T extends Agent> {
 		const group = []
 		for (let i = 0; i < numToSelect; i++) {
 			const selected = this.#pickOne(candidates)
-			const clone = selected.brain.clone()
-			clone.mutate()
-			selected.brain = clone
-			group.push(selected)
+			const clone = this.#create()
+			clone.brain = selected.brain.clone()
+			clone.brain.mutate()
+			group.push(clone)
 		}
 		return group
 	}

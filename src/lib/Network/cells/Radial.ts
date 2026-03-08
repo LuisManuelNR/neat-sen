@@ -5,11 +5,15 @@ import type { Cell } from '../Brain'
 // radial basis node
 export class Radial implements Cell {
 	value: number = 0
-	center = Math.random()
-	weight = Math.random()
-	sigma = randomNumber(0.001, 0.9)
+	center: number
+	weight: number
+	sigma: number
 
-	constructor(center?: number, weight?: number, sigma?: number) {
+	constructor({
+		center,
+		weight,
+		sigma
+	}: { center?: number; weight?: number; sigma?: number } = {}) {
 		this.center = center || Math.random()
 		this.weight = weight || Math.random()
 		this.sigma = sigma || randomNumber(0.001, 0.9)
@@ -20,7 +24,7 @@ export class Radial implements Cell {
 		this.value = gauss * this.weight
 	}
 	mutate(): void {
-		const mutationMagnitude = 0.1 // Magnitud máxima de la perturbación
+		const mutationMagnitude = 0.01 // Magnitud máxima de la perturbación
 
 		this.center += randomGaussian(0, mutationMagnitude)
 		this.weight += randomGaussian(0, mutationMagnitude)

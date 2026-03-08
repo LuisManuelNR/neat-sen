@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { runEveryFrames } from '$lib/utils'
-
 	import { Simulation, type CreateFunction, type Agent } from '$lib/NEAT/Simulator'
-	import type { Brain } from '$lib/Network'
 	import { max, min } from '@chasi/ui/utils'
 	import { CLabel } from '@chasi/ui'
 	import { onMount } from 'svelte'
@@ -30,7 +28,7 @@
 			simulation.population.map((s) => s.train())
 			onUpdate(simulation.population, best)
 			if (frames % evolutionInterval === 0) {
-				let genFitness = simulation.population.reduce((p, c) => c.fitness + p, 0)
+				let genFitness = simulation.population.reduce((p, c) => c.brain.fitness + p, 0)
 				genFitness /= population
 				generations++
 				globalFitness.push(genFitness)
@@ -38,9 +36,9 @@
 					globalFitness.shift()
 				}
 				globalFitness = globalFitness
-				if (simulation.population[0].fitness) {
-					best = simulation.population[0].clone()
-					best.fitness = simulation.population[0].fitness
+				if (simulation.population[0].brain.fitness) {
+					best.brain = simulation.population[0].brain.clone()
+					best.brain.fitness = simulation.population[0].brain.fitness
 					best = best
 				}
 				onNewGen(simulation.population, best)

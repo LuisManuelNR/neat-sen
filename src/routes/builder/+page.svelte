@@ -32,12 +32,13 @@
 		forwardResult = network.propagate(repinga)
 		network = network
 
-		// const clone = network.clone()
-		// console.log(clone, network)
-		// console.log('tienen la misma referencia?', clone === network)
-		// console.log('Son la misma instancia?', clone instanceof RBF_Brain)
-		// const clonefff = clone.propagate(repinga)
-		// console.log('PROPAGATE ES IGUAL?', clonefff, forwardResult)
+		const clone = network.clone()
+		console.log(
+			network.toJSON().edges.map((e) => e.cell),
+			clone.toJSON().edges.map((e) => e.cell)
+		)
+		const clonefff = clone.propagate(repinga)
+		console.log('PROPAGATE ES IGUAL?', clonefff, forwardResult)
 	}
 	let stopSimulation: number | undefined
 	let i = 0
@@ -52,7 +53,7 @@
 			const repinga = Array(inputsSize).fill(Math.sin(i))
 			forwardResult = network.propagate(repinga)
 			network = network
-		}, 200)
+		}, 50)
 	}
 </script>
 

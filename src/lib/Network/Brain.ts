@@ -32,7 +32,8 @@ export class Brain {
 	graph: Map<Node, Set<Node>> = new Map()
 	sorted: Set<Node>[] = []
 
-	constructor(inputs: number, outputs: number) {
+	constructor(inputs?: number, outputs?: number) {
+		if (!inputs || !outputs) return
 		for (let i = 0; i < inputs; i++) {
 			this.addNode(0)
 		}
@@ -87,7 +88,7 @@ export class Brain {
 
 		edge1.target = nodeindex
 		this.edges.push(edge2)
-		this.#sort()
+		this.sort()
 	}
 
 	edge() {
@@ -132,10 +133,10 @@ export class Brain {
 		const tNode = this.nodes[target]
 		this.graph.get(sNode)!.add(tNode)
 		this.edges.push(edge)
-		this.#sort()
+		this.sort()
 	}
 
-	#sort() {
+	sort() {
 		this.sorted = toposort(this.graph)
 	}
 
@@ -174,16 +175,79 @@ export class Brain {
 	}
 
 	mutate() {
-		if (Math.random() < 0.1) this.edge()
-		if (Math.random() < 0.05) this.node()
+		const prob = Math.random()
+		if (prob < 0.01) this.edge()
+		if (prob < 0.005) this.node()
 
 		for (let i = 0; i < this.edges.length; i++) {
-			if (Math.random() < 0.6) this.edges[i].cell.mutate()
+			if (prob < 0.6) this.edges[i].cell.mutate()
 		}
 
 		for (let i = 0; i < this.nodes.length; i++) {
-			if (Math.random() < 0.6) this.nodes[i].cell.mutate()
+			if (prob < 0.6) this.nodes[i].cell.mutate()
 		}
+	}
+	toJSON() {
+		return {
+			nodes: this.nodes.map((n) => ({
+				id: n.id,
+				key: n.key,
+				layer: n.layer,
+				cell: { ...n.cell }
+			})),
+			edges: this.edges.map((e) => ({
+				key: e.key,
+				source: e.source,
+				target: e.target,
+				cell: { ...e.cell }
+			}))
+		}
+	}
+
+	static fromJSON(json: any) {
+		const brain = new Brain()
+
+		// reconstruir nodes
+		for (const n of json.nodes) {
+			const cell = new NODE_POOL[n.key](n.cell)
+
+			const node: Node = {
+				id: n.id,
+				key: n.key,
+				layer: n.layer,
+				cell
+			}
+
+			brain.nodes.push(node)
+			brain.graph.set(node, new Set())
+		}
+
+		// reconstruir edges
+		for (const e of json.edges) {
+			const cell = new EDGE_POOL[e.key](e.cell)
+
+			const edge: Edge = {
+				key: e.key,
+				source: e.source,
+				target: e.target,
+				cell
+			}
+
+			brain.edges.push(edge)
+
+			const source = brain.nodes[e.source]
+			const target = brain.nodes[e.target]
+			brain.graph.get(source)!.add(target)
+		}
+
+		brain.sort()
+
+		return brain
+	}
+
+	clone() {
+		const json = this.toJSON()
+		return Brain.fromJSON(json)
 	}
 }
 
