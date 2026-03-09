@@ -142,11 +142,9 @@ export class Brain {
 
 	propagate(inputs: number[]) {
 		// asignar inputs a la primera capa
-		const firstLayer = this.sorted[0]
-		let i = 0
-		for (const node of firstLayer) {
-			node.cell.value = inputs[i++] ?? 0
-		}
+		[...this.sorted[0]].forEach((node, i) => {
+			node.cell.evaluate(inputs[i])
+		})
 
 		// propagar por capas
 		for (let l = 1; l < this.sorted.length; l++) {

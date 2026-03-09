@@ -7,6 +7,7 @@ export const NODE_POOL = {
 	Radial,
 	BSpline
 } as const
-export const EDGE_POOL = {
-	Scalar
-} as const
+export const EDGE_POOL = NODE_POOL
+// export const EDGE_POOL = {
+// 	Scalar
+// } as const

@@ -1,6 +1,8 @@
 import type { Brain } from '$lib/Network'
 
-export type Agent = { brain: Brain }
+export interface Agent {
+	brain: Brain
+}
 export type CreateFunction<T> = () => T
 export class Simulation<T extends Agent> {
 	population: T[]

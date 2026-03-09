@@ -1,55 +1,53 @@
 <script lang="ts">
-	import { Genome } from '$lib/NEAT/Simulator'
-	import { runOnFrames, linearScale, randomNumber, max, min } from '@chasi/ui/utils'
+	import { linearScale, randomNumber } from '@chasi/ui/utils'
 	import SpiderComponent from './Spider.svelte'
 	import { GameObject } from '$lib/Viz/GameObject'
 	import GameObjectComponent from '$lib/Viz/GameObjectComponent.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
-	import { clamp, randomGaussian, sigmoid } from '$lib/utils'
 	import { CLabel } from '@chasi/ui'
+	import { Brain } from '$lib/Network'
+	import { randomGaussian } from '$lib/utils'
 
 	const MAX_SPEED = 4
 	const w = 1000
 	const h = 600
 
 	let target = new GameObject(w, h)
-	target.x = w / 2
-	target.y = h / 2
-	class Spider extends Genome {
-		speed = MAX_SPEED
+	target.x = randomNumber(0, w)
+	target.y = randomNumber(0, h)
+	class Spider {
+		speed = 0
 		prevDistance = 0
 		score = 0
 		go = new GameObject(w, h)
 		distanceToTarget = 0
+		brain = new Brain(4, 1)
 
 		constructor() {
-			super(2, 1)
-			this.go.x = target.x
-			this.go.y = target.y
+			this.go.x = randomNumber(0, w)
+			this.go.y = randomNumber(0, h)
 			this.speed = MAX_SPEED
 			this.go.angle = randomNumber(-Math.PI, Math.PI)
 		}
 
-		async seek() {
+		seek() {
 			const inputs = [
-				linearScale(target.y - this.go.y, -h, h, 0, 1),
-				linearScale(target.x - this.go.x, -w, w, 0, 1)
-				// linearScale(target.x, 0, w, 0, 1),
-				// linearScale(this.go.x, 0, w, 0, 1),
-				// linearScale(target.y, 0, h, 0, 1),
-				// linearScale(this.go.y, 0, h, 0, 1),
+				linearScale(target.x, 0, w, 0, 1),
+				linearScale(target.y, 0, h, 0, 1),
+				linearScale(this.go.x, 0, w, 0, 1),
+				linearScale(this.go.y, 0, h, 0, 1)
 				// linearScale(this.go.angle, -Math.PI, Math.PI, 0, 1),
 				// linearScale(target.angle, -Math.PI, Math.PI, 0, 1)
 				// linearScale(this.go.angleTo(target), -Math.PI, Math.PI, 0, 1)
 			]
 
-			const outputs = await this.brain.forward(inputs)
+			const outputs = this.brain.propagate(inputs)
 
 			const [newAngle, newSpeed] = outputs
 
 			// this.go.angle += linearScale(newAngle, 0, 1, -1, 1)
 			// this.go.angle = clamp(this.go.angle, -Math.PI, Math.PI)
-			this.go.angle = linearScale(newAngle, 0, 1, -Math.PI, Math.PI)
+			this.go.angle = denormalizeAngle(newAngle)
 			// this.go.angle = linearScale(newAngle, 0, 1, -Math.PI, Math.PI)
 			// respuesta
 			// this.go.angle = this.go.angleTo(target)
@@ -57,7 +55,7 @@
 
 		async train() {
 			this.go.forward(this.speed)
-			await this.seek()
+			this.seek()
 			this.updateFitness()
 		}
 
@@ -70,10 +68,10 @@
 			const objective = this.go.angleTo(target)
 			const error = Math.abs(this.go.angle - objective)
 			// this.fitness += 1 / (1 + error)
-			this.fitness += 1 / (1 + error)
-			this.fitness += 1 / (1 + this.go.distanceTo(target))
-			this.fitness += 1 / (1 + this.brain.dag.nodes.size * 0.01)
-			this.fitness += 1 / (1 + this.brain.dag.connections.size * 0.01)
+			this.brain.fitness += 1 / (1 + error * error)
+			// this.fitness += 1 / (1 + this.go.distanceTo(target))
+			// this.fitness += 1 / (1 + this.brain.dag.nodes.size * 0.01)
+			// this.fitness += 1 / (1 + this.brain.dag.connections.size * 0.01)
 		}
 	}
 
@@ -82,18 +80,18 @@
 	}
 	let showAll = false
 	let spiders: Spider[] = []
-	async function onNewGen(population: Spider[]) {
-		target.x = w / 2
-		target.y = h / 2
+	function onNewGen(population: Spider[]) {
+		target.x = randomNumber(0, w)
+		target.y = randomNumber(0, h)
 	}
 
-	async function onUpdate(population: Spider[]) {
+	function onUpdate(population: Spider[]) {
 		if (showAll) {
 			spiders = population
 		} else {
 			spiders = [population[0]]
 		}
-		if (Math.random() > 0.5) target.angle += randomNumber(-1, 1)
+		if (Math.random() > 0.5) target.angle += randomGaussian(0, 0.1)
 		target.forward(3)
 	}
 
@@ -102,6 +100,10 @@
 		if (!t.closest('.simulator')) return
 		target.x = e.offsetX
 		target.y = e.offsetY
+	}
+
+	function denormalizeAngle(norm: number): number {
+		return norm * 2 * Math.PI - Math.PI
 	}
 </script>
 
