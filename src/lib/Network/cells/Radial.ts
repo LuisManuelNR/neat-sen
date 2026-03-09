@@ -4,20 +4,10 @@ import type { Cell } from '../Brain'
 
 // radial basis node
 export class Radial implements Cell {
-	value: number = 0
-	center: number
-	weight: number
-	sigma: number
-
-	constructor({
-		center,
-		weight,
-		sigma
-	}: { center?: number; weight?: number; sigma?: number } = {}) {
-		this.center = center || Math.random()
-		this.weight = weight || Math.random()
-		this.sigma = sigma || randomNumber(0.001, 0.9)
-	}
+	value = 0
+	center = Math.random()
+	weight = Math.random()
+	sigma = randomNumber(0.001, 0.9)
 
 	evaluate(x: number) {
 		const gauss = Math.exp(-((x - this.center) ** 2) / (2 * this.sigma ** 2))

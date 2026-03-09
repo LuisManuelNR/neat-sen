@@ -10,8 +10,8 @@
 	export let population: number
 	export let create: CreateFunction<Agent>
 	export let defaulEvolutionInterval = 200
-	export let onNewGen: (population: Agent[], best: Agent) => void | Promise<void> = () => {}
-	export let onUpdate: (population: Agent[], best: Agent) => void | Promise<void> = () => {}
+	export let onNewGen: (population: Agent[], best: Agent) => void = () => {}
+	export let onUpdate: (population: Agent[], best: Agent) => void = () => {}
 
 	let evolutionInterval = defaulEvolutionInterval
 	let simulate = false

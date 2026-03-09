@@ -6,7 +6,8 @@
 	import { CLabel } from '@chasi/ui'
 	import { linearScale, max, min, randomNumber } from '@chasi/ui/utils'
 
-	$: realX = linspace(0, 1, 100)
+	let x = 0
+	$: realX = linspace(x, x + 1, 100)
 	$: realY = realX.map((n) => realFunction(n))
 	$: domainX = [min(realX), max(realX)]
 	$: domainY = [min(realY), max(realY)]
@@ -20,7 +21,6 @@
 		brain = new Brain(1, 1)
 
 		train() {
-			// const input = randomNumber(domainX[0], domainX[1])
 			const input = Math.random()
 			const outputs = this.brain.propagate([input])
 			const real = realFunction(input)
@@ -29,7 +29,8 @@
 		}
 
 		evaluate() {
-			return realX.map((n) => {
+			return realX.map((x) => {
+				const n = linearScale(x, domainX[0], domainX[1], 0, 1)
 				const r = this.brain.propagate([n])
 				return r[0]
 			})
@@ -42,7 +43,6 @@
 
 	let showAll = false
 	function onNewGen(population: Agent[], best: Agent) {
-		console.log(best)
 		if (showAll) {
 			predictedY = population.map((p) => p.evaluate())
 		} else {
@@ -50,7 +50,9 @@
 		}
 	}
 
-	function onUpdate(population: Agent[], best: Agent) {}
+	function onUpdate(population: Agent[], best: Agent) {
+		x += 0.001
+	}
 </script>
 
 <Simulator population={50} {create} defaulEvolutionInterval={40} {onNewGen} {onUpdate}>

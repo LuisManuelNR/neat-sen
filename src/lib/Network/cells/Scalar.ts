@@ -3,10 +3,7 @@ import type { Cell } from '../Brain'
 
 export class Scalar implements Cell {
 	value: number = 0
-	weight: number
-	constructor({ weight }: { weight?: number } = {}) {
-		this.weight = weight || Math.random()
-	}
+	weight = Math.random()
 	evaluate(x: number) {
 		this.value = x * this.weight
 	}

@@ -209,7 +209,8 @@ export class Brain {
 
 		// reconstruir nodes
 		for (const n of json.nodes) {
-			const cell = new NODE_POOL[n.key](n.cell)
+			const cell = new NODE_POOL[n.key]()
+			Object.assign(cell, n.cell)
 
 			const node: Node = {
 				id: n.id,
@@ -224,7 +225,8 @@ export class Brain {
 
 		// reconstruir edges
 		for (const e of json.edges) {
-			const cell = new EDGE_POOL[e.key](e.cell)
+			const cell = new EDGE_POOL[e.key]()
+			Object.assign(cell, e.cell)
 
 			const edge: Edge = {
 				key: e.key,

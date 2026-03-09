@@ -6,12 +6,8 @@ const DEGREE = 3
 const KNOTS = Array.from({ length: POINTS + DEGREE + 1 }, (_, i) => i)
 
 export class BSpline implements Cell {
-	value: number = 0
-	points: number[] = []
-
-	constructor({ points }: { points?: number[] } = {}) {
-		this.points = points || Array(POINTS).fill(Math.random())
-	}
+	value = 0
+	points: number[] = Array(POINTS).fill(Math.random())
 
 	evaluate(x: number) {
 		// Remap `x` al dominio donde está definida la spline
