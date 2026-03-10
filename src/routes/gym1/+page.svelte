@@ -4,7 +4,7 @@
 	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
 	import { CLabel } from '@chasi/ui'
-	import { linearScale, max, min, randomNumber } from '@chasi/ui/utils'
+	import { linearScale, max, min } from '@chasi/ui/utils'
 
 	let x = 0
 	$: realX = linspace(x, x + 1, 100)
@@ -24,8 +24,14 @@
 			const input = Math.random()
 			const outputs = this.brain.propagate([input])
 			const real = realFunction(input)
+
 			const error = Math.abs(outputs[0] - real)
-			this.brain.fitness += 1 / (1 + error * error)
+
+			const accuracy = 1 / (1 + error * error)
+
+			const sizePenalty = 1 / (1 + this.brain.nodes.length * 0.01)
+
+			this.brain.fitness += accuracy * sizePenalty
 		}
 
 		evaluate() {
@@ -55,7 +61,7 @@
 	}
 </script>
 
-<Simulator population={50} {create} defaulEvolutionInterval={40} {onNewGen} {onUpdate}>
+<Simulator population={500} {create} defaulEvolutionInterval={40} {onNewGen} {onUpdate}>
 	<div class="d-grid gap-4">
 		<div>
 			<p>target</p>

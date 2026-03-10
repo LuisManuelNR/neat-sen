@@ -143,7 +143,7 @@ export class Brain {
 	propagate(inputs: number[]) {
 		// asignar inputs a la primera capa
 		[...this.sorted[0]].forEach((node, i) => {
-			node.cell.evaluate(inputs[i])
+			node.cell.value = inputs[i]
 		})
 
 		// propagar por capas
@@ -177,14 +177,27 @@ export class Brain {
 		if (prob < 0.01) this.edge()
 		if (prob < 0.005) this.node()
 
-		for (let i = 0; i < this.edges.length; i++) {
-			if (prob < 0.6) this.edges[i].cell.mutate()
-		}
-
-		for (let i = 0; i < this.nodes.length; i++) {
-			if (prob < 0.6) this.nodes[i].cell.mutate()
-		}
+		this.edges.forEach(edge => {
+			if (prob < 0.0003) this.changeKeyEdge(edge)
+			if (prob < 0.6) edge.cell.mutate()
+		})
+		this.nodes.forEach(node => {
+			if (prob < 0.0003) this.changeKetNode(node)
+			if (prob < 0.6) node.cell.mutate()
+		})
 	}
+
+	changeKeyEdge(p: Edge | Node) {
+		const edgeKey = randomElement(EDGES)
+		p.key = edgeKey
+		p.cell = new EDGE_POOL[edgeKey]()
+	}
+	changeKetNode(p: Edge | Node) {
+		const edgeKey = randomElement(NODES)
+		p.key = edgeKey
+		p.cell = new NODE_POOL[edgeKey]()
+	}
+
 	toJSON() {
 		return {
 			nodes: this.nodes.map((n) => ({

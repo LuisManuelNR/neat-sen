@@ -27,7 +27,6 @@
 			frames++
 			simulation.population.map((s) => s.train())
 			onUpdate(simulation.population, best)
-			best.brain = best.brain
 			if (frames % evolutionInterval === 0) {
 				let genFitness = simulation.population.reduce((p, c) => c.brain.fitness + p, 0)
 				genFitness /= population
