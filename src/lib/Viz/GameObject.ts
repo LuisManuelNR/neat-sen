@@ -1,51 +1,55 @@
-import { clamp } from '$lib/utils'
-
 export class GameObject {
 	x = 0
 	y = 0
-	angle = 0
+
+	#angle = 0 // radianes
+	private dirX = 1
+	private dirY = 0
+
 	domain: [number, number]
+	private maxDist: number
 
 	constructor(maxX: number, maxY: number) {
 		this.domain = [maxX, maxY]
+		this.maxDist = Math.sqrt(maxX * maxX + maxY * maxY)
+	}
+
+	get angle() {
+		return this.#angle
+	}
+
+	set angle(angle: number) {
+		this.#angle = angle
+		this.dirX = Math.cos(angle)
+		this.dirY = Math.sin(angle)
 	}
 
 	forward(delta: number) {
-		if (delta < 0) return
-		this.x += delta * Math.cos(this.angle) // Cambia la posición en el eje x
-		this.y += delta * Math.sin(this.angle) // Cambia la posición en el eje y
+		if (delta <= 0) return
 
-		if (this.x > this.domain[0]) this.x = 0
-		if (this.x < 0) this.x = this.domain[0]
-
-		if (this.y > this.domain[1]) this.y = 0
-		if (this.y < 0) this.y = this.domain[1]
-	}
-
-	// Método que te dice en que angulo está otro GameObject
-	angleTo(target: GameObject) {
-		const dx = target.x - this.x
-		const dy = target.y - this.y
-		return Math.atan2(dy, dx)
+		this.x += this.dirX * delta
+		this.y += this.dirY * delta
 	}
 
 	lookingAt(target: GameObject): number {
-		const angleToTarget = this.angleTo(target) // Ángulo hacia el objetivo
-		const angleDifference = Math.abs((this.angle - angleToTarget + Math.PI * 2) % (2 * Math.PI)) // Diferencia de ángulo en radianes
+		const dx = target.x - this.x
+		const dy = target.y - this.y
 
-		// Asegurarse de que la diferencia esté en el rango de 0 a π para una comparación simétrica
-		// const normalizedDifference = Math.min(angleDifference, 2 * Math.PI - angleDifference)
+		const lenSq = dx * dx + dy * dy
+		if (lenSq === 0) return 1
 
-		// Convertir el ángulo a un valor entre 0 y 1
-		// Cuando normalizedDifference es 0, significa que está mirando al objetivo (1)
-		// Cuando normalizedDifference es Math.PI, está en sentido contrario (0)
-		return angleDifference
+		const dot = this.dirX * dx + this.dirY * dy
+		const r = dot / Math.sqrt(lenSq)
+		return Number.isNaN(r) ? -1 : r
 	}
 
 	distanceTo(target: GameObject): number {
 		const dx = target.x - this.x
 		const dy = target.y - this.y
-		const d = Math.hypot(dx, dy)
-		return Number.isNaN(d) ? Infinity : d
+
+		const distSq = dx * dx + dy * dy
+		if (Number.isNaN(distSq)) return this.maxDist
+
+		return Math.sqrt(distSq)
 	}
 }

@@ -1,4 +1,4 @@
-import { random, randomElement, randomIndex } from '$lib/utils'
+import { clamp, random, randomElement, randomIndex } from '$lib/utils'
 import { NODE_POOL, EDGE_POOL } from './cells'
 import { Identity } from './cells/Cells'
 
@@ -152,7 +152,7 @@ export class Brain {
 			const layer = this.sorted[l]
 
 			for (const node of layer) {
-				let sum = 0
+				let sum = 1
 
 				for (const edge of this.edges) {
 					if (edge.target !== node.id) continue
@@ -161,12 +161,10 @@ export class Brain {
 					const x = source.cell.value
 
 					edge.cell.evaluate(x)
-					edge.cell.value = Math.tanh(edge.cell.value)
 					sum += edge.cell.value
 				}
 
 				node.cell.evaluate(sum)
-				node.cell.value = Math.tanh(node.cell.value)
 			}
 		}
 
@@ -177,28 +175,16 @@ export class Brain {
 
 	mutate() {
 		const prob = Math.random()
-		if (prob < 0.01) this.edge()
-		if (prob < 0.005) this.node()
+		if (prob < 0.06) this.edge()
+		if (prob < 0.03) this.node()
 
 		this.edges.forEach((edge) => {
-			if (prob < 0.003) this.changeKeyEdge(edge)
 			if (prob < 0.6) edge.cell.mutate()
 		})
-		this.nodes.forEach((node) => {
-			if (node.layer !== 0 && prob < 0.003) this.changeKetNode(node)
-			if (prob < 0.6) node.cell.mutate()
-		})
-	}
 
-	changeKeyEdge(p: Edge | Node) {
-		const edgeKey = randomElement(EDGES)
-		p.key = edgeKey
-		p.cell = new EDGE_POOL[edgeKey]()
-	}
-	changeKetNode(p: Edge | Node) {
-		const edgeKey = randomElement(NODES)
-		p.key = edgeKey
-		p.cell = new NODE_POOL[edgeKey]()
+		// this.nodes.forEach((node) => {
+		// 	if (prob < 0.6) node.cell.mutate()
+		// })
 	}
 
 	toJSON() {

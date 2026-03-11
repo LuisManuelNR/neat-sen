@@ -23,7 +23,7 @@
 		ctx.scale(dpr, dpr)
 	}
 
-	function render(net?: Brain, debugMode?: boolean) {
+	function render(net?: Brain) {
 		if (!ctx || !net) return
 		if (net.sorted.length === 0) return
 
@@ -87,14 +87,14 @@
 			ctx.stroke()
 
 			// dibujar texto en el centro de la arista
-			const midX = (p1.x + p2.x) / 2
-			const midY = (p1.y + p2.y) / 2
+			// const midX = (p1.x + p2.x) / 2
+			// const midY = (p1.y + p2.y) / 2
 
-			ctx.fillStyle = '#fff'
-			ctx.font = '10px monospace'
-			ctx.textAlign = 'center'
-			ctx.textBaseline = 'middle'
-			ctx.fillText(edge.key, midX, midY)
+			// ctx.fillStyle = '#fff'
+			// ctx.font = '10px monospace'
+			// ctx.textAlign = 'center'
+			// ctx.textBaseline = 'middle'
+			// ctx.fillText(edge.cell.value, midX, midY)
 		}
 
 		// ===== NODES =====
@@ -121,17 +121,11 @@
 
 			ctx.fill()
 
-			if (debugMode) {
-				ctx.fillStyle = '#000'
-				ctx.font = '12px monospace'
-				ctx.textAlign = 'center'
-
-				ctx.fillText(`${node.id}`, pos.x, pos.y - nodeRadius - 6)
-			}
 			// pintar key del nodo encima
 			ctx.fillStyle = '#333'
 			ctx.font = '10px monospace'
-			ctx.fillText(node.key, pos.x, pos.y)
+			ctx.textAlign = 'center'
+			ctx.fillText(node.cell.value.toFixed(2), pos.x, pos.y)
 		}
 	}
 </script>
