@@ -1,5 +1,6 @@
 import { random, randomElement, randomIndex } from '$lib/utils'
 import { NODE_POOL, EDGE_POOL } from './cells'
+import { Identity } from './cells/Cells'
 
 export interface Cell {
 	value: number
@@ -47,12 +48,12 @@ export class Brain {
 	}
 
 	addNode(layer: number) {
-		const nodeKey = randomElement(NODES)
+		const cellKey = layer === 0 ? 'Identity' : randomElement(NODES)
 		const node: Node = {
 			id: this.nodes.length,
-			key: nodeKey,
+			key: cellKey,
 			layer: layer,
-			cell: new NODE_POOL[nodeKey]()
+			cell: new NODE_POOL[cellKey]()
 		}
 		this.graph.set(node, new Set())
 		this.nodes.push(node)
@@ -142,7 +143,7 @@ export class Brain {
 
 	propagate(inputs: number[]) {
 		// asignar inputs a la primera capa
-		[...this.sorted[0]].forEach((node, i) => {
+		;[...this.sorted[0]].forEach((node, i) => {
 			node.cell.value = inputs[i]
 		})
 
@@ -160,10 +161,12 @@ export class Brain {
 					const x = source.cell.value
 
 					edge.cell.evaluate(x)
+					edge.cell.value = Math.tanh(edge.cell.value)
 					sum += edge.cell.value
 				}
 
 				node.cell.evaluate(sum)
+				node.cell.value = Math.tanh(node.cell.value)
 			}
 		}
 
@@ -177,12 +180,12 @@ export class Brain {
 		if (prob < 0.01) this.edge()
 		if (prob < 0.005) this.node()
 
-		this.edges.forEach(edge => {
-			if (prob < 0.0003) this.changeKeyEdge(edge)
+		this.edges.forEach((edge) => {
+			if (prob < 0.003) this.changeKeyEdge(edge)
 			if (prob < 0.6) edge.cell.mutate()
 		})
-		this.nodes.forEach(node => {
-			if (prob < 0.0003) this.changeKetNode(node)
+		this.nodes.forEach((node) => {
+			if (node.layer !== 0 && prob < 0.003) this.changeKetNode(node)
 			if (prob < 0.6) node.cell.mutate()
 		})
 	}

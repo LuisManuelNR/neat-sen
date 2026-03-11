@@ -10,6 +10,7 @@ export class BSpline implements Cell {
 	points: number[] = Array(POINTS).fill(Math.random())
 
 	evaluate(x: number) {
+		x = Math.max(0, Math.min(1, x))
 		// Remap `x` al dominio donde está definida la spline
 		const domain = [DEGREE, KNOTS.length - DEGREE - 1]
 		const low = KNOTS[domain[0]]

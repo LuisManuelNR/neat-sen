@@ -61,7 +61,7 @@
 	}
 </script>
 
-<Simulator population={500} {create} defaulEvolutionInterval={40} {onNewGen} {onUpdate}>
+<Simulator population={2000} {create} defaulEvolutionInterval={40} {onNewGen} {onUpdate}>
 	<div class="d-grid gap-4">
 		<div>
 			<p>target</p>

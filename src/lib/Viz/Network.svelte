@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Brain } from '$lib/Network'
 
-	export let network: Brain
+	export let network: Brain | undefined = undefined
 	export let height = 500
 
 	let width = 800

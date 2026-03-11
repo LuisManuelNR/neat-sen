@@ -11,10 +11,15 @@ export class GameObject {
 	}
 
 	forward(delta: number) {
+		if (delta < 0) return
 		this.x += delta * Math.cos(this.angle) // Cambia la posición en el eje x
 		this.y += delta * Math.sin(this.angle) // Cambia la posición en el eje y
-		this.x = clamp(this.x, 0, this.domain[0])
-		this.y = clamp(this.y, 0, this.domain[1])
+
+		if (this.x > this.domain[0]) this.x = 0
+		if (this.x < 0) this.x = this.domain[0]
+
+		if (this.y > this.domain[1]) this.y = 0
+		if (this.y < 0) this.y = this.domain[1]
 	}
 
 	// Método que te dice en que angulo está otro GameObject
@@ -40,8 +45,7 @@ export class GameObject {
 	distanceTo(target: GameObject): number {
 		const dx = target.x - this.x
 		const dy = target.y - this.y
-		// Distancia euclidiana
-		const r = Math.sqrt(dx * dx + dy * dy)
-		return Number.isNaN(r) ? 0 : r
+		const d = Math.hypot(dx, dy)
+		return Number.isNaN(d) ? Infinity : d
 	}
 }

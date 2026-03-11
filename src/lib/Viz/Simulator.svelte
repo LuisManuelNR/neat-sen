@@ -8,42 +8,34 @@
 	import LineChart from '$lib/Viz/LineChart.svelte'
 
 	export let population: number
-	export let create: CreateFunction<Agent>
+	export let create: CreateFunction
 	export let defaulEvolutionInterval = 200
-	export let onNewGen: (population: Agent[], best: Agent) => void = () => {}
-	export let onUpdate: (population: Agent[], best: Agent) => void = () => {}
+	export let onNewGen: (sim: Simulation) => void = () => {}
+	export let onUpdate: (sim: Simulation) => void = () => {}
 
 	let evolutionInterval = defaulEvolutionInterval
 	let simulate = false
 	let rate = 1
 	let frames = 0
-	let generations = 0
-	let globalFitness: number[] = []
 
-	const simulation = new Simulation(population, create)
-	let best = create()
+	let fitness: number[] = []
+
+	let simulation = new Simulation(population, create)
 	function update() {
 		if (simulate) {
 			frames++
-			simulation.population.map((s) => s.train())
-			onUpdate(simulation.population, best)
+			simulation.population.forEach((a) => a.train())
+			onUpdate(simulation)
 			if (frames % evolutionInterval === 0) {
-				let genFitness = simulation.population.reduce((p, c) => c.brain.fitness + p, 0)
-				genFitness /= population
-				generations++
-				globalFitness.push(genFitness)
-				if (globalFitness.length > 200) {
-					globalFitness.shift()
-				}
-				globalFitness = globalFitness
-				if (simulation.population[0].brain.fitness) {
-					best.brain = simulation.population[0].brain.clone()
-					best.brain.fitness = simulation.population[0].brain.fitness
-					best = best
-				}
-				onNewGen(simulation.population, best)
+				onNewGen(simulation)
 				simulation.evolve()
+				fitness.push(Number(simulation.fitness.toFixed(2)))
+				if (fitness.length > 200) {
+					fitness.shift()
+				}
+				fitness = fitness
 			}
+			simulation = simulation
 		} else {
 			frames = 0
 		}
@@ -80,17 +72,17 @@
 </div>
 
 <div class="simulator s-6 pa-4 mb-4">
-	<slot best={simulation.population[0]} all={simulation.population} />
+	<slot best={simulation.best} all={simulation.population} />
 </div>
 
 <div class="metrics d-grid gap-4">
 	<LineChart
-		domainX={[generations - globalFitness.length, generations]}
-		domainY={[min(globalFitness), max(globalFitness)]}
-		charts={[globalFitness]}
+		domainX={[simulation.generation - fitness.length, simulation.generation]}
+		domainY={[min(fitness), max(fitness)]}
+		charts={[fitness]}
 		height={400}
 	></LineChart>
-	<Network network={best.brain}></Network>
+	<Network network={simulation.best?.brain}></Network>
 </div>
 
 <style>
