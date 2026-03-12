@@ -19,6 +19,7 @@
 		brain = new Brain(5, 2)
 		go = new GameObject(w, h)
 		target = new GameObject(w, h)
+		lastDistance = 0
 
 		constructor() {
 			this.reset()
@@ -46,9 +47,9 @@
 
 			const outputs = this.brain.evaluate(inputs)
 			const [turn, accel] = outputs
-			this.go.angle = linearScale(turn, -1, 1, -Math.PI, Math.PI)
-			// this.speed = linearScale(turn, -1, 1, 0, MAX_SPEED)
-			// this.go.forward(this.speed)
+			this.go.angle += turn * 0.1
+			this.speed += accel * 0.1
+			this.go.forward(this.speed)
 		}
 
 		train() {
@@ -58,19 +59,20 @@
 
 		updateFitness() {
 			const angleDiff = this.go.lookingAt(this.target)
-			if (angleDiff < 0.8) {
-				this.brain.fitness -= 1
-			} else {
-				this.brain.fitness += angleDiff
+			const distance = this.go.distanceTo(this.target)
+
+			const angleScore = (angleDiff + 1) / 2
+
+			const progress = this.lastDistance - distance
+
+			this.brain.fitness += progress * angleScore * 0.1
+
+			this.lastDistance = distance
+
+			if (distance < 60 && angleScore > 0.9) {
+				this.brain.fitness += 1
 				this.reset()
 			}
-			// const distance = this.go.distanceTo(this.target)
-			// if (distance < 60) {
-			// 	this.brain.fitness += 1
-			// 	this.reset()
-			// } else {
-			// 	this.brain.fitness += 0.1 / (1 + distance)
-			// }
 		}
 	}
 
@@ -94,7 +96,7 @@
 <CLabel label="show all" class="mb-4">
 	<input type="checkbox" bind:checked={showAll} />
 </CLabel>
-<Simulator population={1000} {create} defaulEvolutionInterval={400} {onUpdate} {onNewGen}>
+<Simulator population={500} {create} defaulEvolutionInterval={400} {onUpdate} {onNewGen}>
 	{#each spiders as spider, i}
 		<SpiderComponent go={spider.go} color="hsl(199.91deg 91.67% {spider.brain.fitness * 0.1}%)">
 			<!-- {spider.go.distanceTo(spider.target)} -->

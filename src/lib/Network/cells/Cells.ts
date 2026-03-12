@@ -41,9 +41,9 @@ export class BSpline implements CellEdge {
 	}
 
 	mutate(): void {
-		// const mutationMagnitude = 0.01
+		const magnitude = 0.001
 		const rp = randomIndex(this.p)
-		this.p[rp] += (Math.random() * 2 - 1) * 0.1
+		this.p[rp] += (Math.random() * 2 - 1) * magnitude
 		this.p[rp] = clamp(this.p[rp], -1, 1)
 	}
 

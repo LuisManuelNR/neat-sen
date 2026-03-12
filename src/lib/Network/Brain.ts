@@ -38,7 +38,6 @@ export class Brain {
 			const inode = this.addNode()
 			inputs.push(inode)
 		}
-		// const clock = this.addNode(true)
 		for (let i = 0; i < outputSize; i++) {
 			const onode = this.addNode()
 			inputs.forEach((inode) => {
@@ -177,12 +176,11 @@ export class Brain {
 	}
 
 	mutate() {
-		const prob = Math.random()
-		if (prob < 0.06) this.addRandomConnection()
-		if (prob < 0.003) this.addRandomNode()
+		if (Math.random() < 0.08) this.addRandomConnection()
+		if (Math.random() < 0.06) this.addRandomNode()
 
 		this.edges.forEach((edge) => {
-			if (prob < 0.6) edge.cell.mutate()
+			if (Math.random() < 0.25) edge.cell.mutate()
 		})
 	}
 
