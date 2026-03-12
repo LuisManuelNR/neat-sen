@@ -62,6 +62,7 @@
 				this.brain.fitness -= 1
 			} else {
 				this.brain.fitness += angleDiff
+				this.reset()
 			}
 			// const distance = this.go.distanceTo(this.target)
 			// if (distance < 60) {
