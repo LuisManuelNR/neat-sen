@@ -25,8 +25,6 @@ export class GameObject {
 	}
 
 	forward(delta: number) {
-		if (delta <= 0) return
-
 		this.x += this.dirX * delta
 		this.y += this.dirY * delta
 	}

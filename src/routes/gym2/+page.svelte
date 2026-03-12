@@ -29,11 +29,11 @@
 			this.go.y = h / 2
 			this.go.angle = randomNumber(-Math.PI, Math.PI)
 
-			const r = 300
-			const theta = Math.random() * Math.PI * 2
+			this.target.x = w / 2
+			this.target.y = h / 2
+			this.target.angle = this.go.angle
 
-			this.target.x = this.go.x + Math.cos(theta) * r
-			this.target.y = this.go.y + Math.sin(theta) * r
+			this.target.forward(-300)
 		}
 
 		seek() {
@@ -44,13 +44,11 @@
 
 			const inputs = [dx, dy, angleDiff, distance, this.speed / MAX_SPEED]
 
-			const outputs = this.brain.propagate(inputs)
+			const outputs = this.brain.evaluate(inputs)
 			const [turn, accel] = outputs
-			this.go.angle += turn
-			this.go.angle = clamp(this.go.angle, -Math.PI, Math.PI)
-			this.speed += accel
-			this.speed = clamp(this.speed, 0, MAX_SPEED)
-			this.go.forward(this.speed)
+			this.go.angle = linearScale(turn, -1, 1, -Math.PI, Math.PI)
+			// this.speed = linearScale(turn, -1, 1, 0, MAX_SPEED)
+			// this.go.forward(this.speed)
 		}
 
 		train() {
@@ -65,13 +63,13 @@
 			} else {
 				this.brain.fitness += angleDiff
 			}
-			const distance = this.go.distanceTo(this.target)
-			if (distance < 60) {
-				this.brain.fitness += 1
-				this.reset()
-			} else {
-				this.brain.fitness += 0.1 / (1 + distance * distance)
-			}
+			// const distance = this.go.distanceTo(this.target)
+			// if (distance < 60) {
+			// 	this.brain.fitness += 1
+			// 	this.reset()
+			// } else {
+			// 	this.brain.fitness += 0.1 / (1 + distance)
+			// }
 		}
 	}
 

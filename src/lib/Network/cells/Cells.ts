@@ -1,26 +1,26 @@
-import { clamp, randomGaussian, randomIndex } from '$lib/utils'
-import type { Cell } from '../Brain'
+import { clamp, randomGaussian, randomIndex, sum } from '$lib/utils'
+import type { CellEdge, CellNode } from '../Brain'
 
-export class Scalar implements Cell {
+export class Clock implements CellNode {
 	value: number = 0
-	weight = Math.random()
-	evaluate(x: number) {
-		this.value = x * this.weight
-	}
-	mutate(): void {
-		this.weight += randomGaussian(0, 0.1)
+	time = 0
+
+	evaluate() {
+		const cycle = 2 * Math.PI
+		this.time = (this.time + 1) % cycle
+		this.value = Math.sin(this.time)
 	}
 }
 
-export class Identity implements Cell {
+export class Sum implements CellNode {
 	value: number = 0
-	evaluate(x: number) {
+	evaluate(xs: number[]) {
+		const x = sum(xs)
 		this.value = x / (1 + Math.abs(x))
 	}
-	mutate(): void {}
 }
 
-export class BSpline implements Cell {
+export class BSpline implements CellEdge {
 	value = 0
 	p = Array(5)
 		.fill(0)
@@ -45,5 +45,16 @@ export class BSpline implements Cell {
 		const rp = randomIndex(this.p)
 		this.p[rp] += (Math.random() * 2 - 1) * 0.1
 		this.p[rp] = clamp(this.p[rp], -1, 1)
+	}
+
+	split(): [BSpline, BSpline] {
+		const b1 = new BSpline()
+		const b2 = new BSpline()
+		b1.p = this.p.map((val) => {
+			const r = Math.random() // fracción aleatoria
+			return val * r
+		})
+		b2.p = b1.p.map((val, i) => val - b1.p[i])
+		return [b1, b2]
 	}
 }

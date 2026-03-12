@@ -1,202 +1,198 @@
 import { clamp, random, randomElement, randomIndex } from '$lib/utils'
-import { NODE_POOL, EDGE_POOL } from './cells'
-import { Identity } from './cells/Cells'
+import { BSpline, Clock, Sum } from './cells/Cells'
 
-export interface Cell {
+export interface CellNode {
+	value: number
+	evaluate(xs: number[]): void
+}
+export interface CellEdge {
 	value: number
 	evaluate(x: number): void
 	mutate(): void
+	split(): [CellEdge, CellEdge]
 }
 
 type Node = {
 	id: number
-	key: string // key in NODE_POOL
-	layer: number
-	cell: Cell
+	cell: CellNode
 }
-
 type Edge = {
-	key: string // key in EDGE_POOL
 	source: number
 	target: number
-	cell: Cell
+	cell: CellEdge
 }
-
-const NODES = Object.keys(NODE_POOL) as Array<keyof typeof NODE_POOL>
-const EDGES = Object.keys(EDGE_POOL) as Array<keyof typeof EDGE_POOL>
 
 // DirectedAcyclicGraph
 export class Brain {
 	fitness = 0
 	edges: Edge[] = []
 	nodes: Node[] = []
-	graph: Map<Node, Set<Node>> = new Map()
-	sorted: Set<Node>[] = []
+	dag = new Map<number, Set<number>>() // number is index in nodes
+	sorted: Array<Set<number>> = [] // number is index in nodes
+	incoming: Edge[][] = []
 
-	constructor(inputs?: number, outputs?: number) {
-		if (!inputs || !outputs) return
-		for (let i = 0; i < inputs; i++) {
-			this.addNode(0)
+	constructor(inputSize?: number, outputSize?: number) {
+		if (!inputSize || !outputSize) return
+		const inputs = []
+		for (let i = 0; i < inputSize; i++) {
+			const inode = this.addNode()
+			inputs.push(inode)
 		}
-		for (let i = 0; i < outputs; i++) {
-			this.addNode(1)
+		// const clock = this.addNode(true)
+		for (let i = 0; i < outputSize; i++) {
+			const onode = this.addNode()
+			inputs.forEach((inode) => {
+				this.connect(inode.id, onode.id)
+			})
 		}
-		let edges = inputs * outputs
-		while (edges-- > 0) {
-			this.edge()
-		}
-	}
-
-	addNode(layer: number) {
-		const cellKey = layer === 0 ? 'Identity' : randomElement(NODES)
-		const node: Node = {
-			id: this.nodes.length,
-			key: cellKey,
-			layer: layer,
-			cell: new NODE_POOL[cellKey]()
-		}
-		this.graph.set(node, new Set())
-		this.nodes.push(node)
-	}
-
-	node() {
-		if (this.edges.length === 0) return
-		const edge1 = randomElement(this.edges)
-
-		const prevNode = this.nodes[edge1.source]
-		const nextNode = this.nodes[edge1.target]
-
-		const nodeKey = randomElement(NODES)
-		const node: Node = {
-			id: this.nodes.length,
-			key: nodeKey,
-			layer: (prevNode.layer + nextNode.layer) / 2,
-			cell: new NODE_POOL[nodeKey]()
-		}
-		this.graph.get(prevNode)!.add(node)
-		this.graph.get(prevNode)!.delete(nextNode)
-		this.graph.set(node, new Set([nextNode]))
-
-		const nodeindex = this.nodes.push(node) - 1
-
-		const edgeKey = randomElement(EDGES)
-		const edge2: Edge = {
-			key: edgeKey,
-			source: nodeindex,
-			target: edge1.target,
-			cell: new EDGE_POOL[edgeKey]()
-		}
-
-		edge1.target = nodeindex
-		this.edges.push(edge2)
 		this.sort()
 	}
 
-	edge() {
-		if (this.nodes.length < 2) return
-		// nodos candidatos para connectar
-		const candidates: [number, number][] = []
-
-		// conexiones existentes
-		const existing = new Set<number>()
-		const nodes = this.nodes.length
-
-		for (let i = 0; i < this.edges.length; i++) {
-			const edge = this.edges[i]
-			existing.add(edge.source * nodes + edge.target)
+	addNode(id?: number) {
+		const node: Node = {
+			id: id || this.nodes.length,
+			cell: new Sum()
 		}
+		this.nodes[node.id] = node
+		this.dag.set(node.id, new Set())
+		return node
+	}
 
-		for (let i = 0; i < nodes; i++) {
-			const source = this.nodes[i]
-			for (let j = 0; j < nodes; j++) {
-				const target = this.nodes[j]
-				if (source.layer >= target.layer) continue
-				if (i === j) continue
+	connect(source: number, target: number, cell: CellEdge = new BSpline()) {
+		const edge: Edge = {
+			source,
+			target,
+			cell
+		}
+		this.edges.push(edge)
+		this.dag.get(source)!.add(target)
+		return edge
+	}
 
-				const key = i * nodes + j
-				if (existing.has(key)) continue
+	disconnect(source: number, target: number, edgeindex: number) {
+		this.dag.get(source)!.delete(target)
+		this.edges.splice(edgeindex, 1)
+	}
 
-				candidates.push([i, j])
+	addRandomNode() {
+		const selectedIndex = randomIndex(this.edges)
+		const selected = this.edges[selectedIndex]
+		const { source, target } = selected
+		const [cell1, cell2] = selected.cell.split()
+
+		const newnode = this.addNode()
+
+		this.connect(source, newnode.id, cell1)
+		this.connect(newnode.id, target, cell2)
+
+		this.disconnect(source, target, selectedIndex)
+		this.sort()
+	}
+
+	addRandomConnection() {
+		const candidates: number[][] = []
+
+		const existing = new Set(this.edges.map((e) => `${e.source}-${e.target}`))
+
+		for (let i = 0; i < this.sorted.length; i++) {
+			for (let j = i + 1; j < this.sorted.length; j++) {
+				const layerA = this.sorted[i]
+				const layerB = this.sorted[j]
+
+				for (const source of layerA) {
+					for (const target of layerB) {
+						if (!existing.has(`${source}-${target}`)) {
+							candidates.push([source, target])
+						}
+					}
+				}
 			}
 		}
 
-		if (candidates.length === 0) return
+		if (!candidates.length) return
 
 		const [source, target] = randomElement(candidates)
-		const edgeKey = randomElement(EDGES)
-		const edge: Edge = {
-			key: edgeKey,
-			source,
-			target,
-			cell: new EDGE_POOL[edgeKey]()
-		}
-		const sNode = this.nodes[source]
-		const tNode = this.nodes[target]
-		this.graph.get(sNode)!.add(tNode)
-		this.edges.push(edge)
+
+		this.connect(source, target)
 		this.sort()
 	}
 
 	sort() {
-		this.sorted = toposort(this.graph)
+		this.sorted = toposort(this.dag)
+
+		this.incoming = new Array(this.nodes.length)
+
+		for (let i = 0; i < this.nodes.length; i++) {
+			this.incoming[i] = []
+		}
+
+		for (const edge of this.edges) {
+			this.incoming[edge.target].push(edge)
+		}
 	}
 
-	propagate(inputs: number[]) {
-		// asignar inputs a la primera capa
-		;[...this.sorted[0]].forEach((node, i) => {
-			node.cell.value = inputs[i]
-		})
+	evaluate(inputs: number[]) {
+		const firstLayer = this.sorted[0]
 
-		// propagar por capas
+		if (inputs.length !== firstLayer.size) {
+			throw new Error('Mismatch inputs size')
+		}
+
+		let i = 0
+		for (const nodeid of firstLayer) {
+			this.nodes[nodeid].cell.value = inputs[i++]
+		}
+
 		for (let l = 1; l < this.sorted.length; l++) {
 			const layer = this.sorted[l]
 
-			for (const node of layer) {
-				let sum = 1
+			for (const nodeid of layer) {
+				const edges = this.incoming[nodeid]
 
-				for (const edge of this.edges) {
-					if (edge.target !== node.id) continue
+				const xs: number[] = new Array(edges.length)
 
-					const source = this.nodes[edge.source]
-					const x = source.cell.value
+				for (let k = 0; k < edges.length; k++) {
+					const edge = edges[k]
+					const sourceVal = this.nodes[edge.source].cell.value
 
-					edge.cell.evaluate(x)
-					sum += edge.cell.value
+					edge.cell.evaluate(sourceVal)
+
+					xs[k] = edge.cell.value
 				}
 
-				node.cell.evaluate(sum)
+				this.nodes[nodeid].cell.evaluate(xs)
 			}
 		}
 
-		// devolver outputs (última capa)
 		const lastLayer = this.sorted[this.sorted.length - 1]
-		return [...lastLayer].map((n) => n.cell.value)
+
+		const outputs: number[] = new Array(lastLayer.size)
+
+		i = 0
+		for (const nodeid of lastLayer) {
+			outputs[i++] = this.nodes[nodeid].cell.value
+		}
+
+		return outputs
 	}
 
 	mutate() {
 		const prob = Math.random()
-		if (prob < 0.06) this.edge()
-		if (prob < 0.03) this.node()
+		if (prob < 0.06) this.addRandomConnection()
+		if (prob < 0.003) this.addRandomNode()
 
 		this.edges.forEach((edge) => {
 			if (prob < 0.6) edge.cell.mutate()
 		})
-
-		// this.nodes.forEach((node) => {
-		// 	if (prob < 0.6) node.cell.mutate()
-		// })
 	}
 
 	toJSON() {
 		return {
 			nodes: this.nodes.map((n) => ({
 				id: n.id,
-				key: n.key,
-				layer: n.layer,
 				cell: { ...n.cell }
 			})),
 			edges: this.edges.map((e) => ({
-				key: e.key,
 				source: e.source,
 				target: e.target,
 				cell: { ...e.cell }
@@ -204,43 +200,18 @@ export class Brain {
 		}
 	}
 
-	static fromJSON(json: any) {
+	static fromJSON(json: ReturnType<Brain['toJSON']>) {
 		const brain = new Brain()
 
-		// reconstruir nodes
-		for (const n of json.nodes) {
-			const cell = new NODE_POOL[n.key]()
-			Object.assign(cell, n.cell)
+		json.nodes.forEach((rawNode) => {
+			const source = brain.addNode(rawNode.id)
+			Object.assign(source.cell, rawNode.cell)
+		})
 
-			const node: Node = {
-				id: n.id,
-				key: n.key,
-				layer: n.layer,
-				cell
-			}
-
-			brain.nodes.push(node)
-			brain.graph.set(node, new Set())
-		}
-
-		// reconstruir edges
-		for (const e of json.edges) {
-			const cell = new EDGE_POOL[e.key]()
-			Object.assign(cell, e.cell)
-
-			const edge: Edge = {
-				key: e.key,
-				source: e.source,
-				target: e.target,
-				cell
-			}
-
-			brain.edges.push(edge)
-
-			const source = brain.nodes[e.source]
-			const target = brain.nodes[e.target]
-			brain.graph.get(source)!.add(target)
-		}
+		json.edges.forEach((rawEdge) => {
+			const edge = brain.connect(rawEdge.source, rawEdge.target)
+			Object.assign(edge.cell, rawEdge.cell)
+		})
 
 		brain.sort()
 
@@ -253,19 +224,19 @@ export class Brain {
 	}
 }
 
-type DirectedAcyclicGraph = Map<string, Iterable<string>>
+type DirectedAcyclicGraph<T> = Map<T, Iterable<T>>
 
-function toposort(dag: DirectedAcyclicGraph) {
+function toposort<T>(dag: DirectedAcyclicGraph<T>) {
 	const inDegrees = countInDegrees(dag)
 
 	let { roots, nonRoots } = getRootsAndNonRoots(inDegrees)
 
-	const sorted: Array<Set<string>> = []
+	const sorted: Array<Set<T>> = []
 
 	while (roots.size) {
 		sorted.push(roots)
 
-		const newRoots = new Set<string>()
+		const newRoots = new Set<T>()
 		for (const root of roots) {
 			for (const dependent of dag.get(root)!) {
 				inDegrees.set(dependent, inDegrees.get(dependent)! - 1)
@@ -286,10 +257,10 @@ function toposort(dag: DirectedAcyclicGraph) {
 	return sorted
 }
 
-type InDegrees = Map<string, number>
+type InDegrees<T> = Map<T, number>
 
-function countInDegrees(dag: DirectedAcyclicGraph): InDegrees {
-	const counts: InDegrees = new Map()
+function countInDegrees<T>(dag: DirectedAcyclicGraph<T>): InDegrees<T> {
+	const counts: InDegrees<T> = new Map()
 
 	for (const [vx, dependents] of dag.entries()) {
 		counts.set(vx, counts.get(vx) ?? 0)
@@ -301,9 +272,9 @@ function countInDegrees(dag: DirectedAcyclicGraph): InDegrees {
 	return counts
 }
 
-function getRootsAndNonRoots(counts: InDegrees) {
-	const roots = new Set<string>()
-	const nonRoots = new Set<string>()
+function getRootsAndNonRoots<T>(counts: InDegrees<T>) {
+	const roots = new Set<T>()
+	const nonRoots = new Set<T>()
 	for (const [id, deg] of counts.entries()) {
 		if (deg === 0) {
 			roots.add(id)

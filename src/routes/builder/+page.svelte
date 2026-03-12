@@ -10,11 +10,11 @@
 	let forwardResult: number[] = []
 
 	function addNode() {
-		network.node()
+		network.addRandomNode()
 		network = network
 	}
 	function addConnection() {
-		network.edge()
+		network.addRandomConnection()
 		network = network
 	}
 	function randomize() {
@@ -29,16 +29,15 @@
 	}
 	function propagate() {
 		const repinga = Array(inputsSize).fill(2)
-		forwardResult = network.propagate(repinga)
+		forwardResult = network.evaluate(repinga)
 		network = network
+		console.log(forwardResult)
 
-		const clone = network.clone()
-		console.log(
-			network.toJSON().edges.map((e) => e.cell),
-			clone.toJSON().edges.map((e) => e.cell)
-		)
-		const clonefff = clone.propagate(repinga)
-		console.log('PROPAGATE ES IGUAL?', clonefff, forwardResult)
+		// const clone = network.clone()
+		// const clonefff = clone.evaluate(repinga)
+		// console.log('PROPAGATE ES IGUAL?')
+		// console.log('original', forwardResult)
+		// console.log('clone', clonefff)
 	}
 	let stopSimulation: number | undefined
 	let i = 0
@@ -51,7 +50,7 @@
 		stopSimulation = setInterval(() => {
 			i++
 			const repinga = Array(inputsSize).fill(Math.sin(i))
-			forwardResult = network.propagate(repinga)
+			forwardResult = network.evaluate(repinga)
 			network = network
 		}, 50)
 	}

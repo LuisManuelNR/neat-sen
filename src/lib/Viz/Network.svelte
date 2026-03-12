@@ -50,7 +50,7 @@
 		// ===== POSICIONES =====
 		net.sorted.forEach((layer, li) => {
 			const nodes = [...layer]
-			const nodeCount = nodes.length
+			const nodeCount = layer.size
 
 			const x = hMargin + li * layerSpacing
 
@@ -61,7 +61,7 @@
 			nodes.forEach((node, ni) => {
 				const y = nodeCount === 1 ? height / 2 : startY + ni * nodeRadius * 3
 
-				positions.set(node.id, { x, y })
+				positions.set(node, { x, y })
 			})
 		})
 
