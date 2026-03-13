@@ -24,7 +24,7 @@ export class BSpline implements CellEdge {
 	value = 0
 	p = Array(5)
 		.fill(0)
-		.map((p) => (Math.random() * 2 - 1) * 0.1)
+		.map((p) => (Math.random() * 2 - 1) * 0.8)
 
 	evaluate(x: number) {
 		const x2 = x * x
@@ -54,7 +54,7 @@ export class BSpline implements CellEdge {
 			const r = Math.random() // fracción aleatoria
 			return val * r
 		})
-		b2.p = b1.p.map((val, i) => val - b1.p[i])
+		b2.p = this.p.map((val, i) => val - b1.p[i])
 		return [b1, b2]
 	}
 }

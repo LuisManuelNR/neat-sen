@@ -49,13 +49,14 @@
 			// const dy = linearScale(this.target.y - this.go.y, -h, h, -1, 1)
 			// const distance = linearScale(this.go.distanceTo(this.target), 0, w, -1, 1)
 			const angleScore = this.go.lookingAt(this.target)
+			// const iangle = linearScale(angleScore, 0, 1, -1, 1)
 			const inputs = [angleScore, sx, sy, tx, ty]
 
 			const outputs = this.brain.evaluate(inputs)
 			const [turn, accel] = outputs
-			this.go.angle += turn * 0.1
+			this.go.angle += turn * 0.2
 			// this.go.angle = clamp(this.go.angle, -Math.PI, Math.PI)
-			this.speed += accel * 0.1
+			this.speed += accel * 0.2
 			// this.speed = clamp(this.speed, 0, MAX_SPEED)
 			this.go.forward(this.speed)
 		}
@@ -69,16 +70,23 @@
 			const angleScore = this.go.lookingAt(this.target) // [-1,1]
 			const distance = this.go.distanceTo(this.target)
 
-			if (distance < 60 && angleScore > 0.9) {
-				this.brain.fitness += 1
+			// evitar valores negativos de orientación
+			const clampedAngle = Math.max(0, angleScore)
+
+			// reward por cercanía (normalizado)
+			const distanceScore = 1 / (1 + distance * 0.02)
+
+			// fitness incremental
+			this.brain.fitness += distanceScore * clampedAngle
+
+			// objetivo alcanzado
+			if (distance < 60 && clampedAngle > 0.9) {
+				this.brain.fitness += 5
 				this.reset()
-			} else {
-				this.brain.fitness += 1 / (1 + distance * angleScore)
 			}
 
-			// penalización por complejidad de la red
-			const complexityPenalty = 0.001 * (this.brain.nodes.length + this.brain.edges.length)
-			// ajusta el factor 0.01 según cuánto quieras que influya la complejidad
+			// penalización ligera por complejidad
+			const complexityPenalty = 0.005 * (this.brain.nodes.length + this.brain.edges.length)
 			this.brain.fitness -= complexityPenalty
 		}
 	}
@@ -103,7 +111,7 @@
 <CLabel label="show all" class="mb-4">
 	<input type="checkbox" bind:checked={showAll} />
 </CLabel>
-<Simulator population={500} {create} defaulEvolutionInterval={400} {onUpdate} {onNewGen}>
+<Simulator population={1000} {create} defaulEvolutionInterval={200} {onUpdate} {onNewGen}>
 	{#each spiders as spider, i}
 		<SpiderComponent go={spider.go} color="hsl(199.91deg 91.67% {spider.brain.fitness * 0.1}%)">
 			<!-- {spider.go.distanceTo(spider.target)} -->
