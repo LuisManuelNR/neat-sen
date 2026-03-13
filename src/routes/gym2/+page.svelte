@@ -8,6 +8,7 @@
 	import { Brain } from '$lib/Network'
 	import { clamp, randomGaussian } from '$lib/utils'
 	import type { Simulation } from '$lib/NEAT/Simulator'
+	import { Clock } from '$lib/Network/cells/Cells'
 
 	const MAX_SPEED = 4
 	const w = 1000
@@ -38,17 +39,24 @@
 		}
 
 		seek() {
-			const dx = linearScale(this.target.x - this.go.x, -w, w, -1, 1)
-			const dy = linearScale(this.target.y - this.go.y, -h, h, -1, 1)
-			const distance = linearScale(this.go.distanceTo(this.target), 0, w, -1, 1)
-			const angleDiff = this.go.lookingAt(this.target)
-
-			const inputs = [dx, dy, angleDiff, distance, this.speed / MAX_SPEED]
+			const sx = linearScale(this.go.x, 0, w, -1, 1)
+			const sy = linearScale(this.go.y, 0, h, -1, 1)
+			const tx = linearScale(this.target.x, 0, w, -1, 1)
+			const ty = linearScale(this.target.y, 0, h, -1, 1)
+			// const nspeed = linearScale(this.speed, 0, MAX_SPEED, -1, 1)
+			// const nangle = linearScale(this.go.angle, -Math.PI, Math.PI, -1, 1)
+			// const dx = linearScale(this.target.x - this.go.x, -w, w, -1, 1)
+			// const dy = linearScale(this.target.y - this.go.y, -h, h, -1, 1)
+			// const distance = linearScale(this.go.distanceTo(this.target), 0, w, -1, 1)
+			const angleScore = this.go.lookingAt(this.target)
+			const inputs = [angleScore, sx, sy, tx, ty]
 
 			const outputs = this.brain.evaluate(inputs)
 			const [turn, accel] = outputs
 			this.go.angle += turn * 0.1
+			// this.go.angle = clamp(this.go.angle, -Math.PI, Math.PI)
 			this.speed += accel * 0.1
+			// this.speed = clamp(this.speed, 0, MAX_SPEED)
 			this.go.forward(this.speed)
 		}
 
@@ -58,21 +66,20 @@
 		}
 
 		updateFitness() {
-			const angleDiff = this.go.lookingAt(this.target)
+			const angleScore = this.go.lookingAt(this.target) // [-1,1]
 			const distance = this.go.distanceTo(this.target)
-
-			const angleScore = (angleDiff + 1) / 2
-
-			const progress = this.lastDistance - distance
-
-			this.brain.fitness += progress * angleScore * 0.1
-
-			this.lastDistance = distance
 
 			if (distance < 60 && angleScore > 0.9) {
 				this.brain.fitness += 1
 				this.reset()
+			} else {
+				this.brain.fitness += 1 / (1 + distance * angleScore)
 			}
+
+			// penalización por complejidad de la red
+			const complexityPenalty = 0.001 * (this.brain.nodes.length + this.brain.edges.length)
+			// ajusta el factor 0.01 según cuánto quieras que influya la complejidad
+			this.brain.fitness -= complexityPenalty
 		}
 	}
 

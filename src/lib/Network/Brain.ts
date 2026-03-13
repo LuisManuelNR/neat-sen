@@ -14,6 +14,7 @@ export interface CellEdge {
 
 type Node = {
 	id: number
+	layer: number
 	cell: CellNode
 }
 type Edge = {
@@ -27,19 +28,19 @@ export class Brain {
 	fitness = 0
 	edges: Edge[] = []
 	nodes: Node[] = []
-	dag = new Map<number, Set<number>>() // number is index in nodes
-	sorted: Array<Set<number>> = [] // number is index in nodes
-	incoming: Edge[][] = []
+	incomings = new Map<number, Set<Edge>>()
+	outgoings = new Map<number, Set<Edge>>()
+	layers: Node[][] = []
 
 	constructor(inputSize?: number, outputSize?: number) {
 		if (!inputSize || !outputSize) return
 		const inputs = []
 		for (let i = 0; i < inputSize; i++) {
-			const inode = this.addNode()
+			const inode = this.addNode(0)
 			inputs.push(inode)
 		}
 		for (let i = 0; i < outputSize; i++) {
-			const onode = this.addNode()
+			const onode = this.addNode(1)
 			inputs.forEach((inode) => {
 				this.connect(inode.id, onode.id)
 			})
@@ -47,13 +48,15 @@ export class Brain {
 		this.sort()
 	}
 
-	addNode(id?: number) {
+	addNode(layer: number, id?: number) {
 		const node: Node = {
-			id: id || this.nodes.length,
+			id: id ?? this.nodes.length,
+			layer,
 			cell: new Sum()
 		}
 		this.nodes[node.id] = node
-		this.dag.set(node.id, new Set())
+		this.incomings.set(node.id, new Set())
+		this.outgoings.set(node.id, new Set())
 		return node
 	}
 
@@ -64,12 +67,15 @@ export class Brain {
 			cell
 		}
 		this.edges.push(edge)
-		this.dag.get(source)!.add(target)
+		this.incomings.get(target)!.add(edge)
+		this.outgoings.get(source)!.add(edge)
 		return edge
 	}
 
-	disconnect(source: number, target: number, edgeindex: number) {
-		this.dag.get(source)!.delete(target)
+	disconnect(edgeindex: number) {
+		const edge = this.edges[edgeindex]
+		this.incomings.get(edge.target)!.delete(edge)
+		this.outgoings.get(edge.source)!.delete(edge)
 		this.edges.splice(edgeindex, 1)
 	}
 
@@ -79,32 +85,39 @@ export class Brain {
 		const { source, target } = selected
 		const [cell1, cell2] = selected.cell.split()
 
-		const newnode = this.addNode()
+		const prevNode = this.nodes[source]
+		const nextNode = this.nodes[target]
+		const newnode = this.addNode((prevNode.layer + nextNode.layer) / 2)
 
 		this.connect(source, newnode.id, cell1)
 		this.connect(newnode.id, target, cell2)
 
-		this.disconnect(source, target, selectedIndex)
+		this.disconnect(selectedIndex)
 		this.sort()
 	}
 
 	addRandomConnection() {
 		const candidates: number[][] = []
 
-		const existing = new Set(this.edges.map((e) => `${e.source}-${e.target}`))
+		for (const a of this.nodes) {
+			if (!a) continue
 
-		for (let i = 0; i < this.sorted.length; i++) {
-			for (let j = i + 1; j < this.sorted.length; j++) {
-				const layerA = this.sorted[i]
-				const layerB = this.sorted[j]
+			for (const b of this.nodes) {
+				if (!b) continue
+				if (a.layer >= b.layer) continue
 
-				for (const source of layerA) {
-					for (const target of layerB) {
-						if (!existing.has(`${source}-${target}`)) {
-							candidates.push([source, target])
-						}
+				const edges = this.outgoings.get(a.id)!
+
+				let exists = false
+
+				for (const e of edges) {
+					if (e.target === b.id) {
+						exists = true
+						break
 					}
 				}
+
+				if (!exists) candidates.push([a.id, b.id])
 			}
 		}
 
@@ -117,82 +130,86 @@ export class Brain {
 	}
 
 	sort() {
-		this.sorted = toposort(this.dag)
+		const sorted = this.nodes.toSorted((a, b) => {
+			return a.layer - b.layer
+		})
 
-		this.incoming = new Array(this.nodes.length)
+		let lastLayer = -1
+		let currentLayer = -1
+		const layers: Node[][] = []
+		sorted.forEach((n, i) => {
+			if (lastLayer !== n.layer) {
+				layers.push([])
+				lastLayer = n.layer
+				currentLayer++
+			}
+			n.layer = currentLayer
+			layers[layers.length - 1].push(n)
+		})
 
-		for (let i = 0; i < this.nodes.length; i++) {
-			this.incoming[i] = []
-		}
-
-		for (const edge of this.edges) {
-			this.incoming[edge.target].push(edge)
-		}
+		this.layers = layers
 	}
 
 	evaluate(inputs: number[]) {
-		const firstLayer = this.sorted[0]
+		const firstLayer = this.layers[0]
 
-		if (inputs.length !== firstLayer.size) {
+		if (inputs.length !== firstLayer.length) {
 			throw new Error('Mismatch inputs size')
 		}
 
-		let i = 0
-		for (const nodeid of firstLayer) {
-			this.nodes[nodeid].cell.value = inputs[i++]
-		}
+		firstLayer.forEach((node, i) => {
+			node.cell.value = inputs[i]
+		})
 
-		for (let l = 1; l < this.sorted.length; l++) {
-			const layer = this.sorted[l]
+		const outputs: number[] = []
 
-			for (const nodeid of layer) {
-				const edges = this.incoming[nodeid]
+		for (let l = 0; l < this.layers.length; l++) {
+			const layer = this.layers[l]
 
-				const xs: number[] = new Array(edges.length)
+			for (const node of layer) {
+				if (l !== 0) {
+					const incoming = this.incomings.get(node.id)!
+					const xs = new Array(incoming.size)
 
-				for (let k = 0; k < edges.length; k++) {
-					const edge = edges[k]
-					const sourceVal = this.nodes[edge.source].cell.value
+					let i = 0
+					for (const e of incoming) {
+						xs[i++] = e.cell.value
+					}
 
-					edge.cell.evaluate(sourceVal)
-
-					xs[k] = edge.cell.value
+					node.cell.evaluate(xs)
 				}
 
-				this.nodes[nodeid].cell.evaluate(xs)
+				const outEdges = this.outgoings.get(node.id)!
+
+				if (outEdges.size === 0) {
+					outputs.push(node.cell.value)
+				} else {
+					for (const edge of outEdges) {
+						edge.cell.evaluate(node.cell.value)
+					}
+				}
 			}
 		}
-
-		const lastLayer = this.sorted[this.sorted.length - 1]
-
-		const outputs: number[] = new Array(lastLayer.size)
-
-		i = 0
-		for (const nodeid of lastLayer) {
-			outputs[i++] = this.nodes[nodeid].cell.value
-		}
-
 		return outputs
 	}
 
 	mutate() {
-		if (Math.random() < 0.08) this.addRandomConnection()
-		if (Math.random() < 0.06) this.addRandomNode()
-
-		this.edges.forEach((edge) => {
-			if (Math.random() < 0.25) edge.cell.mutate()
-		})
+		if (Math.random() < 0.06) this.addRandomConnection()
+		if (Math.random() < 0.02) this.addRandomNode()
+		if (Math.random() < 0.25) {
+			const redge = randomElement(this.edges)
+			redge.cell.mutate()
+		}
 	}
 
 	toJSON() {
 		return {
 			nodes: this.nodes.map((n) => ({
-				id: n.id,
+				...n,
 				cell: { ...n.cell }
 			})),
 			edges: this.edges.map((e) => ({
-				source: e.source,
-				target: e.target,
+				...e,
 				cell: { ...e.cell }
 			}))
 		}
@@ -202,7 +219,7 @@ export class Brain {
 		const brain = new Brain()
 
 		json.nodes.forEach((rawNode) => {
-			const source = brain.addNode(rawNode.id)
+			const source = brain.addNode(rawNode.layer, rawNode.id)
 			Object.assign(source.cell, rawNode.cell)
 		})
 
@@ -220,65 +237,4 @@ export class Brain {
 		const json = this.toJSON()
 		return Brain.fromJSON(json)
 	}
-}
-
-type DirectedAcyclicGraph<T> = Map<T, Iterable<T>>
-
-function toposort<T>(dag: DirectedAcyclicGraph<T>) {
-	const inDegrees = countInDegrees(dag)
-
-	let { roots, nonRoots } = getRootsAndNonRoots(inDegrees)
-
-	const sorted: Array<Set<T>> = []
-
-	while (roots.size) {
-		sorted.push(roots)
-
-		const newRoots = new Set<T>()
-		for (const root of roots) {
-			for (const dependent of dag.get(root)!) {
-				inDegrees.set(dependent, inDegrees.get(dependent)! - 1)
-				if (inDegrees.get(dependent) === 0) {
-					newRoots.add(dependent)
-				}
-			}
-		}
-
-		roots = newRoots
-	}
-	nonRoots = getRootsAndNonRoots(inDegrees).nonRoots
-
-	if (nonRoots.size) {
-		throw Error('Cycle(s) detected; toposort only works on acyclic graphs')
-	}
-
-	return sorted
-}
-
-type InDegrees<T> = Map<T, number>
-
-function countInDegrees<T>(dag: DirectedAcyclicGraph<T>): InDegrees<T> {
-	const counts: InDegrees<T> = new Map()
-
-	for (const [vx, dependents] of dag.entries()) {
-		counts.set(vx, counts.get(vx) ?? 0)
-		for (const dependent of dependents) {
-			counts.set(dependent, (counts.get(dependent) ?? 0) + 1)
-		}
-	}
-
-	return counts
-}
-
-function getRootsAndNonRoots<T>(counts: InDegrees<T>) {
-	const roots = new Set<T>()
-	const nonRoots = new Set<T>()
-	for (const [id, deg] of counts.entries()) {
-		if (deg === 0) {
-			roots.add(id)
-		} else if (deg !== 0) {
-			nonRoots.add(id)
-		}
-	}
-	return { roots, nonRoots }
 }

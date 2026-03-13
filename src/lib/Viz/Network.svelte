@@ -25,7 +25,7 @@
 
 	function render(net?: Brain) {
 		if (!ctx || !net) return
-		if (net.sorted.length === 0) return
+		if (net.layers.length === 0) return
 
 		ctx.clearRect(0, 0, width, height)
 
@@ -35,12 +35,12 @@
 		const maxNodeRadius = 18
 		const minNodeRadius = 6
 
-		const layerCount = net.sorted.length
-		const maxNodes = Math.max(...net.sorted.map((l) => l.size))
+		const layerCount = net.layers.length
+		const maxNodes = net.nodes.length
 
 		const nodeRadius = Math.max(
 			minNodeRadius,
-			Math.min(maxNodeRadius, (height - vMargin * 2) / (maxNodes * 2.5))
+			Math.min(maxNodeRadius, (height - vMargin * 2) / maxNodes)
 		)
 
 		const layerSpacing = layerCount > 1 ? (width - hMargin * 2) / (layerCount - 1) : 0
@@ -48,9 +48,8 @@
 		const positions = new Map<number, { x: number; y: number }>()
 
 		// ===== POSICIONES =====
-		net.sorted.forEach((layer, li) => {
-			const nodes = [...layer]
-			const nodeCount = layer.size
+		net.layers.forEach((nodes, li) => {
+			const nodeCount = nodes.length
 
 			const x = hMargin + li * layerSpacing
 
@@ -61,7 +60,7 @@
 			nodes.forEach((node, ni) => {
 				const y = nodeCount === 1 ? height / 2 : startY + ni * nodeRadius * 3
 
-				positions.set(node, { x, y })
+				positions.set(node.id, { x, y })
 			})
 		})
 
@@ -85,16 +84,6 @@
 			ctx.strokeStyle = weight >= 0 ? '#2ecc71' : '#e74c3c'
 
 			ctx.stroke()
-
-			// dibujar texto en el centro de la arista
-			// const midX = (p1.x + p2.x) / 2
-			// const midY = (p1.y + p2.y) / 2
-
-			// ctx.fillStyle = '#fff'
-			// ctx.font = '10px monospace'
-			// ctx.textAlign = 'center'
-			// ctx.textBaseline = 'middle'
-			// ctx.fillText(edge.cell.value, midX, midY)
 		}
 
 		// ===== NODES =====
@@ -122,10 +111,10 @@
 			ctx.fill()
 
 			// pintar key del nodo encima
-			ctx.fillStyle = '#333'
-			ctx.font = '10px monospace'
-			ctx.textAlign = 'center'
-			ctx.fillText(node.cell.value.toFixed(2), pos.x, pos.y)
+			// ctx.fillStyle = '#333'
+			// ctx.font = '10px monospace'
+			// ctx.textAlign = 'center'
+			// ctx.fillText(node.cell.value.toFixed(2), pos.x, pos.y)
 		}
 	}
 </script>

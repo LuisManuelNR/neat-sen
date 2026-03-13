@@ -152,19 +152,19 @@ export class DAG<T extends DagStore> {
 	}
 }
 
-export type DirectedAcyclicGraph = Map<string, Iterable<string>>
+export type DirectedAcyclicGraph<T> = Map<T, Iterable<T>>
 
-function toposort(dag: DirectedAcyclicGraph) {
+function toposort<T>(dag: DirectedAcyclicGraph<T>) {
 	const inDegrees = countInDegrees(dag)
 
 	let { roots, nonRoots } = getRootsAndNonRoots(inDegrees)
 
-	const sorted: Array<Set<string>> = []
+	const sorted: Array<Set<T>> = []
 
 	while (roots.size) {
 		sorted.push(roots)
 
-		const newRoots = new Set<string>()
+		const newRoots = new Set<T>()
 		for (const root of roots) {
 			for (const dependent of dag.get(root)!) {
 				inDegrees.set(dependent, inDegrees.get(dependent)! - 1)
@@ -185,10 +185,10 @@ function toposort(dag: DirectedAcyclicGraph) {
 	return sorted
 }
 
-type InDegrees = Map<string, number>
+type InDegrees<T> = Map<T, number>
 
-function countInDegrees(dag: DirectedAcyclicGraph): InDegrees {
-	const counts: InDegrees = new Map()
+function countInDegrees<T>(dag: DirectedAcyclicGraph<T>): InDegrees<T> {
+	const counts: InDegrees<T> = new Map()
 
 	for (const [vx, dependents] of dag.entries()) {
 		counts.set(vx, counts.get(vx) ?? 0)
@@ -200,9 +200,9 @@ function countInDegrees(dag: DirectedAcyclicGraph): InDegrees {
 	return counts
 }
 
-function getRootsAndNonRoots(counts: InDegrees) {
-	const roots = new Set<string>()
-	const nonRoots = new Set<string>()
+function getRootsAndNonRoots<T>(counts: InDegrees<T>) {
+	const roots = new Set<T>()
+	const nonRoots = new Set<T>()
 	for (const [id, deg] of counts.entries()) {
 		if (deg === 0) {
 			roots.add(id)

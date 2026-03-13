@@ -28,7 +28,7 @@
 		network = network
 	}
 	function propagate() {
-		const repinga = Array(inputsSize).fill(2)
+		const repinga = Array(inputsSize).fill(0.2)
 		forwardResult = network.evaluate(repinga)
 		network = network
 		console.log(forwardResult)

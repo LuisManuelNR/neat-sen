@@ -9,14 +9,14 @@ export class Clock implements CellNode {
 		const cycle = 2 * Math.PI
 		this.time = (this.time + 1) % cycle
 		this.value = Math.sin(this.time)
+		return this.value
 	}
 }
 
 export class Sum implements CellNode {
 	value: number = 0
 	evaluate(xs: number[]) {
-		const x = sum(xs)
-		this.value = x / (1 + Math.abs(x))
+		this.value = stable(xs)
 	}
 }
 
@@ -24,7 +24,7 @@ export class BSpline implements CellEdge {
 	value = 0
 	p = Array(5)
 		.fill(0)
-		.map((p) => (Math.random() * 2 - 1) * 0.8)
+		.map((p) => (Math.random() * 2 - 1) * 0.1)
 
 	evaluate(x: number) {
 		const x2 = x * x
@@ -41,7 +41,7 @@ export class BSpline implements CellEdge {
 	}
 
 	mutate(): void {
-		const magnitude = 0.001
+		const magnitude = 0.01
 		const rp = randomIndex(this.p)
 		this.p[rp] += (Math.random() * 2 - 1) * magnitude
 		this.p[rp] = clamp(this.p[rp], -1, 1)
@@ -57,4 +57,17 @@ export class BSpline implements CellEdge {
 		b2.p = b1.p.map((val, i) => val - b1.p[i])
 		return [b1, b2]
 	}
+}
+
+function stable(inputs: number[]): number {
+	let sum = 0
+	let norm = 0
+
+	for (const x of inputs) {
+		sum += x
+		norm += Math.abs(x)
+	}
+
+	if (norm === 0) return 0
+	return sum / norm
 }
