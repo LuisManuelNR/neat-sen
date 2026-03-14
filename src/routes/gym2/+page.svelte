@@ -35,7 +35,7 @@
 			this.target.y = h / 2
 			this.target.angle = this.go.angle
 
-			this.target.forward(-300)
+			this.target.forward(randomNumber(-250, -350))
 		}
 
 		seek() {
@@ -54,10 +54,15 @@
 
 			const outputs = this.brain.evaluate(inputs)
 			const [turn, accel] = outputs
-			this.go.angle += turn * 0.2
-			// this.go.angle = clamp(this.go.angle, -Math.PI, Math.PI)
-			this.speed += accel * 0.2
-			// this.speed = clamp(this.speed, 0, MAX_SPEED)
+			if (turn > 0.3) {
+				this.go.angle += 0.2
+			}
+			if (turn < -0.3) {
+				this.go.angle -= 0.2
+			}
+			if (accel > 0) {
+				this.speed = MAX_SPEED
+			}
 			this.go.forward(this.speed)
 		}
 
@@ -80,14 +85,14 @@
 			this.brain.fitness += distanceScore * clampedAngle
 
 			// objetivo alcanzado
-			if (distance < 60 && clampedAngle > 0.9) {
+			if (distance < 60 && clampedAngle > 0.8) {
 				this.brain.fitness += 5
 				this.reset()
 			}
 
 			// penalización ligera por complejidad
-			const complexityPenalty = 0.005 * (this.brain.nodes.length + this.brain.edges.length)
-			this.brain.fitness -= complexityPenalty
+			// const complexityPenalty = 0.0005 * (this.brain.nodes.length + this.brain.edges.length)
+			// this.brain.fitness -= complexityPenalty
 		}
 	}
 
@@ -111,7 +116,7 @@
 <CLabel label="show all" class="mb-4">
 	<input type="checkbox" bind:checked={showAll} />
 </CLabel>
-<Simulator population={1000} {create} defaulEvolutionInterval={200} {onUpdate} {onNewGen}>
+<Simulator population={500} {create} defaulEvolutionInterval={200} {onUpdate} {onNewGen}>
 	{#each spiders as spider, i}
 		<SpiderComponent go={spider.go} color="hsl(199.91deg 91.67% {spider.brain.fitness * 0.1}%)">
 			<!-- {spider.go.distanceTo(spider.target)} -->

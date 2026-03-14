@@ -16,7 +16,8 @@ export class Clock implements CellNode {
 export class Sum implements CellNode {
 	value: number = 0
 	evaluate(xs: number[]) {
-		this.value = stable(xs)
+		const s = sum(xs)
+		this.value = Math.tanh(s)
 	}
 }
 

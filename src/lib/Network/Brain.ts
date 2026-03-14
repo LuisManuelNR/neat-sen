@@ -194,8 +194,8 @@ export class Brain {
 	}
 
 	mutate() {
-		if (Math.random() < 0.06) this.addRandomConnection()
-		if (Math.random() < 0.02) this.addRandomNode()
+		if (Math.random() < 0.1) return this.addRandomConnection()
+		if (Math.random() < 0.02) return this.addRandomNode()
 		if (Math.random() < 0.25) {
 			const redge = randomElement(this.edges)
 			redge.cell.mutate()

@@ -1,29 +1,31 @@
 <script lang="ts">
-	import { createBoundPoints, Vec2D } from '$lib/utils'
+	import { createBoundPoints, randomGaussian, Vec2D } from '$lib/utils'
 	import GameObjectComponent from '$lib/Viz/GameObjectComponent.svelte'
 	import { runOnFrames, randomNumber } from '@chasi/ui/utils'
 	import { onMount } from 'svelte'
 	import { GameObject } from '$lib/Viz/GameObject'
 	import Spider from '../gym2/Spider.svelte'
 
-	let spider = new GameObject()
-	let target = new GameObject()
+	let spider = new GameObject(600, 600)
+	let target = new GameObject(600, 600)
 	target.x = 300
 	target.y = 300
 	const keysPressed: Record<string, boolean> = {}
 
 	function update() {
 		if (keysPressed['d']) {
-			spider.angle += 0.5
+			spider.angle += 0.2
 		}
 		if (keysPressed['a']) {
-			spider.angle -= 0.5
+			spider.angle -= 0.2
 		}
 		if (keysPressed['w']) {
 			spider.forward(6)
 		}
 		spider = spider
 		target = target
+		if (Math.random() > 0.5) target.angle += randomGaussian(0, 0.1)
+		target.forward(5)
 	}
 
 	// Manejar cuando se presiona una tecla

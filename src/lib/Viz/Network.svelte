@@ -94,17 +94,17 @@
 			ctx.beginPath()
 			ctx.arc(pos.x, pos.y, nodeRadius, 0, Math.PI * 2)
 
-			ctx.fillStyle = '#fff'
+			ctx.fillStyle = '#2C303D'
 			ctx.fill()
 
-			ctx.strokeStyle = '#000'
+			ctx.strokeStyle = '#fff'
 			ctx.lineWidth = 2
 			ctx.stroke()
 
 			const innerRadius = nodeRadius * Math.min(Math.abs(node.cell.value), 1)
 
 			ctx.beginPath()
-			ctx.arc(pos.x, pos.y, innerRadius * 0.85, 0, Math.PI * 2)
+			ctx.arc(pos.x, pos.y, innerRadius * 0.95, 0, Math.PI * 2)
 
 			ctx.fillStyle = node.cell.value >= 0 ? '#2ecc71' : '#e74c3c'
 
