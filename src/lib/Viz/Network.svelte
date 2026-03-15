@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte'
 	import type { Brain } from '$lib/Network'
 
 	export let network: Brain | undefined = undefined
@@ -7,66 +8,156 @@
 	let width = 800
 	let canvas: HTMLCanvasElement
 	let ctx: CanvasRenderingContext2D
-	$: canvas && render(network)
+
+	let frame = 0
+
+	const positions = new Map<number, { x: number; y: number }>()
+	const velocities = new Map<number, { x: number; y: number }>()
+
+	const repulsion = 4000
+	const springLength = 60
+	const springStrength = 0.02
+	const damping = 0.6
 
 	function setup(canvas: HTMLCanvasElement) {
 		const dpr = window.devicePixelRatio || 1
 
-		// Obtener tamaño visual del canvas
 		width = canvas.clientWidth
-		const height = canvas.clientHeight
+		const h = canvas.clientHeight
 
-		// Ajustar tamaño real del canvas
 		canvas.width = width * dpr
-		canvas.height = height * dpr
+		canvas.height = h * dpr
+
 		ctx = canvas.getContext('2d')!
 		ctx.scale(dpr, dpr)
 	}
 
-	function render(net?: Brain) {
-		if (!ctx || !net) return
-		if (net.layers.length === 0) return
+	function ensureNodes(net: Brain) {
+		for (const node of net.nodes) {
+			if (positions.has(node.id)) continue
+
+			positions.set(node.id, {
+				x: Math.random() * width,
+				y: Math.random() * height
+			})
+
+			velocities.set(node.id, { x: 0, y: 0 })
+		}
+	}
+
+	function layoutStep(net: Brain) {
+		const inputs = new Set(net.inputIds)
+		const outputs = new Set(net.outputIds)
+
+		const cx = width / 2
+		const cy = height / 2
+
+		const inputRadius = Math.min(width, height) * 0.45
+		const outputRadius = Math.min(width, height) * 0.08
+
+		// ===== REPULSION =====
+
+		for (const a of net.nodes) {
+			const pa = positions.get(a.id)!
+			const va = velocities.get(a.id)!
+
+			for (const b of net.nodes) {
+				if (a.id === b.id) continue
+
+				const pb = positions.get(b.id)!
+
+				let dx = pa.x - pb.x
+				let dy = pa.y - pb.y
+
+				const dist = Math.sqrt(dx * dx + dy * dy) + 0.01
+
+				const force = repulsion / (dist * dist)
+
+				va.x += (dx / dist) * force
+				va.y += (dy / dist) * force
+			}
+		}
+
+		// ===== SPRINGS =====
+
+		for (const edge of net.edges) {
+			const p1 = positions.get(edge.source)!
+			const p2 = positions.get(edge.target)!
+
+			const v1 = velocities.get(edge.source)!
+			const v2 = velocities.get(edge.target)!
+
+			let dx = p2.x - p1.x
+			let dy = p2.y - p1.y
+
+			const dist = Math.sqrt(dx * dx + dy * dy) + 0.01
+
+			const force = (dist - springLength) * springStrength
+
+			const fx = (dx / dist) * force
+			const fy = (dy / dist) * force
+
+			v1.x += fx
+			v1.y += fy
+
+			v2.x -= fx
+			v2.y -= fy
+		}
+
+		// ===== INTEGRATION =====
+
+		for (const node of net.nodes) {
+			const pos = positions.get(node.id)!
+			const vel = velocities.get(node.id)!
+
+			// if (!inputs.has(node.id) && !outputs.has(node.id)) {
+			pos.x += vel.x
+			pos.y += vel.y
+
+			vel.x *= damping
+			vel.y *= damping
+			// }
+		}
+
+		// // ===== ANCHOR OUTPUTS (CENTRO) =====
+
+		// net.outputIds.forEach((id, i) => {
+		// 	const angle = (i / net.outputIds.length) * Math.PI * 2
+
+		// 	const pos = positions.get(id)!
+		// 	const vel = velocities.get(id)!
+
+		// 	pos.x = cx + Math.cos(angle) * outputRadius
+		// 	pos.y = cy + Math.sin(angle) * outputRadius
+
+		// 	vel.x = 0
+		// 	vel.y = 0
+		// })
+
+		// // ===== ANCHOR INPUTS (ANILLO EXTERIOR) =====
+
+		// net.inputIds.forEach((id, i) => {
+		// 	const angle = (i / net.inputIds.length) * Math.PI * 2
+
+		// 	const pos = positions.get(id)!
+		// 	const vel = velocities.get(id)!
+
+		// 	pos.x = cx + Math.cos(angle) * inputRadius
+		// 	pos.y = cy + Math.sin(angle) * inputRadius
+
+		// 	vel.x = 0
+		// 	vel.y = 0
+		// })
+	}
+
+	function render(net: Brain) {
+		if (!ctx) return
 
 		ctx.clearRect(0, 0, width, height)
 
-		const hMargin = 60
-		const vMargin = 60
+		const nodeRadius = 10
 
-		const maxNodeRadius = 18
-		const minNodeRadius = 6
-
-		const layerCount = net.layers.length
-		const maxNodes = net.nodes.length
-
-		const nodeRadius = Math.max(
-			minNodeRadius,
-			Math.min(maxNodeRadius, (height - vMargin * 2) / maxNodes)
-		)
-
-		const layerSpacing = layerCount > 1 ? (width - hMargin * 2) / (layerCount - 1) : 0
-
-		const positions = new Map<number, { x: number; y: number }>()
-
-		// ===== POSICIONES =====
-		net.layers.forEach((nodes, li) => {
-			const nodeCount = nodes.length
-
-			const x = hMargin + li * layerSpacing
-
-			const totalHeight = nodeCount > 1 ? (nodeCount - 1) * nodeRadius * 3 : 0
-
-			const startY = (height - totalHeight) / 2
-
-			nodes.forEach((node, ni) => {
-				const y = nodeCount === 1 ? height / 2 : startY + ni * nodeRadius * 3
-
-				positions.set(node.id, { x, y })
-			})
-		})
-
-		// ===== EDGES =====
-		ctx.lineCap = 'round'
-
+		// edges
 		for (const edge of net.edges) {
 			const p1 = positions.get(edge.source)
 			const p2 = positions.get(edge.target)
@@ -76,17 +167,24 @@
 			const weight = edge.cell.value
 
 			ctx.beginPath()
+
+			// if (p2.x < p1.x) {
+			// const mx = (p1.x + p2.x) / 2
+			// const my = (p1.y + p2.y) / 2 - 40
+			// ctx.moveTo(p1.x, p1.y)
+			// ctx.quadraticCurveTo(mx, my, p2.x, p2.y)
+			// } else {
 			ctx.moveTo(p1.x, p1.y)
 			ctx.lineTo(p2.x, p2.y)
+			// }
 
-			ctx.lineWidth = 1 + Math.min(Math.abs(weight), 1) * 6
-
+			ctx.lineWidth = 1 + Math.min(Math.abs(weight), 1) * 5
 			ctx.strokeStyle = weight >= 0 ? '#2ecc71' : '#e74c3c'
 
 			ctx.stroke()
 		}
 
-		// ===== NODES =====
+		// nodes
 		for (const node of net.nodes) {
 			const pos = positions.get(node.id)
 			if (!pos) continue
@@ -101,25 +199,35 @@
 			ctx.lineWidth = 2
 			ctx.stroke()
 
-			const innerRadius = nodeRadius * Math.min(Math.abs(node.cell.value), 1)
+			const inner = nodeRadius * Math.min(Math.abs(node.cell.value), 1)
 
 			ctx.beginPath()
-			ctx.arc(pos.x, pos.y, innerRadius * 0.95, 0, Math.PI * 2)
+			ctx.arc(pos.x, pos.y, inner, 0, Math.PI * 2)
 
 			ctx.fillStyle = node.cell.value >= 0 ? '#2ecc71' : '#e74c3c'
-
 			ctx.fill()
-
-			// pintar key del nodo encima
-			// ctx.fillStyle = '#333'
-			// ctx.font = '10px monospace'
-			// ctx.textAlign = 'center'
-			// ctx.fillText(node.cell.value.toFixed(2), pos.x, pos.y)
 		}
 	}
+
+	function loop() {
+		if (network) {
+			ensureNodes(network)
+			layoutStep(network)
+			render(network)
+		}
+
+		frame = requestAnimationFrame(loop)
+	}
+
+	onMount(() => {
+		frame = requestAnimationFrame(loop)
+		return () => {
+			cancelAnimationFrame(frame)
+		}
+	})
 </script>
 
-<canvas bind:this={canvas} use:setup style="height: {height}px;"></canvas>
+<canvas bind:this={canvas} use:setup style="height:{height}px;"></canvas>
 
 <style>
 	canvas {

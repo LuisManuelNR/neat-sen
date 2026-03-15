@@ -1,17 +1,19 @@
 <script lang="ts">
 	import { runEveryFrames } from '$lib/utils'
-	import { Simulation, type CreateFunction, type Agent } from '$lib/NEAT/Simulator'
+	import { Simulation, type CreateFunction } from '$lib/NEAT/Simulator'
 	import { max, min } from '@chasi/ui/utils'
 	import { CLabel } from '@chasi/ui'
 	import { onMount } from 'svelte'
 	import Network from '$lib/Viz/Network.svelte'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 
+	type T = $$Generic
+
 	export let population: number
-	export let create: CreateFunction
+	export let create: CreateFunction<T>
 	export let defaulEvolutionInterval = 200
-	export let onNewGen: (sim: Simulation) => void = () => {}
-	export let onUpdate: (sim: Simulation) => void = () => {}
+	export let onNewGen: (population: T[], best: T) => void = () => {}
+	export let onUpdate: (population: T[], best: T) => void = () => {}
 
 	let evolutionInterval = defaulEvolutionInterval
 	let simulate = false
@@ -20,14 +22,14 @@
 
 	let fitness: number[] = []
 
-	let simulation = new Simulation(population, create)
+	let simulation = new Simulation<any>(population, create)
 	function update() {
 		if (simulate) {
 			frames++
 			simulation.population.forEach((a) => a.train())
-			onUpdate(simulation)
+			onUpdate(simulation.population, simulation.best)
 			if (frames % evolutionInterval === 0) {
-				onNewGen(simulation)
+				onNewGen(simulation.population, simulation.best)
 				simulation.evolve()
 				fitness.push(Number(simulation.fitness.toFixed(2)))
 				if (fitness.length > 200) {
@@ -67,8 +69,6 @@
 	<CLabel label="simulation rate x {rate}" class="s-6">
 		<input type="range" min="0" max="20" bind:value={rate} />
 	</CLabel>
-
-	<!-- <button class="btn success" on:click={startSimulation}> predict </button> -->
 </div>
 
 <div class="simulator s-6 pa-4 mb-4">
@@ -82,13 +82,12 @@
 		charts={[fitness]}
 		height={400}
 	></LineChart>
-	<Network network={simulation.best?.brain}></Network>
+	<!-- <Network network={simulation.best?.brain}></Network> -->
 </div>
 
 <style>
 	.simulator {
 		position: relative;
-		min-height: 600px;
 	}
 	.metrics {
 		--sm-columns: 1fr 1fr;

@@ -2,20 +2,21 @@ import type { Brain } from '$lib/Network'
 
 export interface Agent {
 	brain: Brain
+	train: () => void
 }
 
-export type CreateFunction = () => Agent
+export type CreateFunction<T> = () => T
 
-export class Simulation {
-	population: Agent[]
+export class Simulation<T extends Agent> {
+	population: T[]
 	#populationSize: number
-	#create: CreateFunction
+	#create: CreateFunction<T>
 
 	generation = 0
-	best: Agent
+	best: T
 	fitness = 0
 
-	constructor(populationSize: number, create: CreateFunction) {
+	constructor(populationSize: number, create: CreateFunction<T>) {
 		this.#populationSize = populationSize
 		this.population = []
 		this.#create = create

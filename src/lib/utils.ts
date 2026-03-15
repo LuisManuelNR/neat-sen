@@ -109,6 +109,9 @@ export function randomIndex(arr: readonly any[]) {
 export function random(min = 0, max = 1) {
 	return Math.random() * (max - min) + min
 }
+export function randomInt(min = 0, max = 1) {
+	return Math.floor(random(min, max))
+}
 
 export class Vec2D {
 	x: number

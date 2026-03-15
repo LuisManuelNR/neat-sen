@@ -7,14 +7,14 @@
 	import { CLabel } from '@chasi/ui'
 	import { Brain } from '$lib/Network'
 	import { clamp, randomGaussian } from '$lib/utils'
-	import type { Simulation } from '$lib/NEAT/Simulator'
+	import type { Agent, Simulation } from '$lib/NEAT/Simulator'
 	import { Clock } from '$lib/Network/cells/Cells'
 
 	const MAX_SPEED = 4
 	const w = 1000
 	const h = 600
 
-	class Spider {
+	class Spider implements Agent {
 		speed = 0
 		prevDistance = w
 		brain = new Brain(5, 2)
@@ -101,14 +101,12 @@
 	}
 	let showAll = false
 	let spiders: Spider[] = []
-	function onNewGen(sim: Simulation) {}
 
-	function onUpdate(sim: Simulation) {
+	function onUpdate(population: Spider[], best: Spider) {
 		if (showAll) {
-			spiders = sim.population
-		} else if (sim.best) {
-			sim.best.train()
-			spiders = [sim.best]
+			spiders = population.slice()
+		} else {
+			spiders = [best]
 		}
 	}
 </script>

@@ -11,6 +11,7 @@
 		{ href: '/builder', text: 'Network Builder' },
 		{ href: '/gym1', text: 'Gym 1' },
 		{ href: '/gym2', text: 'Gym 2' },
+		{ href: '/gym3', text: 'Gym 3' },
 		{ href: '/playground', text: 'Playground' }
 	]
 </script>

@@ -1,10 +1,11 @@
-import { clamp, random, randomElement, randomIndex } from '$lib/utils'
-import { BSpline, Clock, Sum } from './cells/Cells'
+import { randomElement, randomIndex } from '$lib/utils'
+import { BSpline, Sum } from './cells/Cells'
 
 export interface CellNode {
 	value: number
 	evaluate(xs: number[]): void
 }
+
 export interface CellEdge {
 	value: number
 	evaluate(x: number): void
@@ -17,35 +18,41 @@ type Node = {
 	layer: number
 	cell: CellNode
 }
+
 type Edge = {
 	source: number
 	target: number
 	cell: CellEdge
 }
 
-// DirectedAcyclicGraph
 export class Brain {
 	fitness = 0
-	edges: Edge[] = []
+
 	nodes: Node[] = []
+	edges: Edge[] = []
+
 	incomings = new Map<number, Set<Edge>>()
 	outgoings = new Map<number, Set<Edge>>()
-	layers: Node[][] = []
+
+	inputIds: number[] = []
+	outputIds: number[] = []
 
 	constructor(inputSize?: number, outputSize?: number) {
 		if (!inputSize || !outputSize) return
-		const inputs = []
+
 		for (let i = 0; i < inputSize; i++) {
-			const inode = this.addNode(0)
-			inputs.push(inode)
+			const n = this.addNode(0)
+			this.inputIds.push(n.id)
 		}
+
 		for (let i = 0; i < outputSize; i++) {
-			const onode = this.addNode(1)
-			inputs.forEach((inode) => {
-				this.connect(inode.id, onode.id)
-			})
+			const n = this.addNode(1)
+			this.outputIds.push(n.id)
+
+			for (const input of this.inputIds) {
+				this.connect(input, n.id)
+			}
 		}
-		this.sort()
 	}
 
 	addNode(layer: number, id?: number) {
@@ -54,57 +61,56 @@ export class Brain {
 			layer,
 			cell: new Sum()
 		}
+
 		this.nodes[node.id] = node
 		this.incomings.set(node.id, new Set())
 		this.outgoings.set(node.id, new Set())
+
 		return node
 	}
 
 	connect(source: number, target: number, cell: CellEdge = new BSpline()) {
-		const edge: Edge = {
-			source,
-			target,
-			cell
-		}
+		const edge: Edge = { source, target, cell }
+
 		this.edges.push(edge)
 		this.incomings.get(target)!.add(edge)
 		this.outgoings.get(source)!.add(edge)
+
 		return edge
 	}
 
-	disconnect(edgeindex: number) {
-		const edge = this.edges[edgeindex]
+	disconnect(index: number) {
+		const edge = this.edges[index]
+
 		this.incomings.get(edge.target)!.delete(edge)
 		this.outgoings.get(edge.source)!.delete(edge)
-		this.edges.splice(edgeindex, 1)
+
+		this.edges.splice(index, 1)
 	}
 
 	addRandomNode() {
-		const selectedIndex = randomIndex(this.edges)
-		const selected = this.edges[selectedIndex]
-		const { source, target } = selected
-		const [cell1, cell2] = selected.cell.split()
+		const index = randomIndex(this.edges)
+		const edge = this.edges[index]
 
-		const prevNode = this.nodes[source]
-		const nextNode = this.nodes[target]
-		const newnode = this.addNode((prevNode.layer + nextNode.layer) / 2)
+		const [c1, c2] = edge.cell.split()
 
-		this.connect(source, newnode.id, cell1)
-		this.connect(newnode.id, target, cell2)
+		const node = this.addNode(0)
 
-		this.disconnect(selectedIndex)
-		this.sort()
+		this.connect(edge.source, node.id, c1)
+		this.connect(node.id, edge.target, c2)
+
+		this.disconnect(index)
 	}
 
 	addRandomConnection() {
-		const candidates: number[][] = []
+		const candidates: [number, number][] = []
 
 		for (const a of this.nodes) {
 			if (!a) continue
 
 			for (const b of this.nodes) {
 				if (!b) continue
-				if (a.layer >= b.layer) continue
+				if (a.id === b.id) continue
 
 				const edges = this.outgoings.get(a.id)!
 
@@ -126,79 +132,57 @@ export class Brain {
 		const [source, target] = randomElement(candidates)
 
 		this.connect(source, target)
-		this.sort()
 	}
 
-	sort() {
-		const sorted = this.nodes.toSorted((a, b) => {
-			return a.layer - b.layer
-		})
-
-		let lastLayer = -1
-		let currentLayer = -1
-		const layers: Node[][] = []
-		sorted.forEach((n, i) => {
-			if (lastLayer !== n.layer) {
-				layers.push([])
-				lastLayer = n.layer
-				currentLayer++
-			}
-			n.layer = currentLayer
-			layers[layers.length - 1].push(n)
-		})
-
-		this.layers = layers
-	}
-
-	evaluate(inputs: number[]) {
-		const firstLayer = this.layers[0]
-
-		if (inputs.length !== firstLayer.length) {
-			throw new Error('Mismatch inputs size')
+	evaluate(inputs: number[], steps = 3) {
+		if (inputs.length !== this.inputIds.length) {
+			console.log(inputs)
+			throw new Error(
+				`Mismatch inputs size, inputs: ${inputs.length}, expect: ${this.inputIds.length}`
+			)
 		}
 
-		firstLayer.forEach((node, i) => {
-			node.cell.value = inputs[i]
-		})
+		for (let i = 0; i < inputs.length; i++) {
+			this.nodes[this.inputIds[i]].cell.value = inputs[i]
+		}
+
+		for (let step = 0; step < steps; step++) {
+			for (const edge of this.edges) {
+				const source = this.nodes[edge.source]
+				edge.cell.evaluate(source.cell.value)
+			}
+
+			for (const node of this.nodes) {
+				if (this.inputIds.includes(node.id)) continue
+
+				const incoming = this.incomings.get(node.id)!
+				const xs = new Array(incoming.size)
+
+				let i = 0
+				for (const e of incoming) {
+					xs[i++] = e.cell.value
+				}
+
+				node.cell.evaluate(xs)
+			}
+		}
 
 		const outputs: number[] = []
 
-		for (let l = 0; l < this.layers.length; l++) {
-			const layer = this.layers[l]
-
-			for (const node of layer) {
-				if (l !== 0) {
-					const incoming = this.incomings.get(node.id)!
-					const xs = new Array(incoming.size)
-
-					let i = 0
-					for (const e of incoming) {
-						xs[i++] = e.cell.value
-					}
-
-					node.cell.evaluate(xs)
-				}
-
-				const outEdges = this.outgoings.get(node.id)!
-
-				if (outEdges.size === 0) {
-					outputs.push(node.cell.value)
-				} else {
-					for (const edge of outEdges) {
-						edge.cell.evaluate(node.cell.value)
-					}
-				}
-			}
+		for (const id of this.outputIds) {
+			outputs.push(this.nodes[id].cell.value)
 		}
+
 		return outputs
 	}
 
 	mutate() {
 		if (Math.random() < 0.1) return this.addRandomConnection()
 		if (Math.random() < 0.02) return this.addRandomNode()
+
 		if (Math.random() < 0.25) {
-			const redge = randomElement(this.edges)
-			redge.cell.mutate()
+			const edge = randomElement(this.edges)
+			edge.cell.mutate()
 		}
 	}
 
@@ -211,30 +195,32 @@ export class Brain {
 			edges: this.edges.map((e) => ({
 				...e,
 				cell: { ...e.cell }
-			}))
+			})),
+			inputIds: this.inputIds,
+			outputIds: this.outputIds
 		}
 	}
 
 	static fromJSON(json: ReturnType<Brain['toJSON']>) {
 		const brain = new Brain()
 
-		json.nodes.forEach((rawNode) => {
-			const source = brain.addNode(rawNode.layer, rawNode.id)
-			Object.assign(source.cell, rawNode.cell)
+		json.nodes.forEach((raw) => {
+			const node = brain.addNode(raw.layer, raw.id)
+			Object.assign(node.cell, raw.cell)
 		})
 
-		json.edges.forEach((rawEdge) => {
-			const edge = brain.connect(rawEdge.source, rawEdge.target)
-			Object.assign(edge.cell, rawEdge.cell)
+		json.edges.forEach((raw) => {
+			const edge = brain.connect(raw.source, raw.target)
+			Object.assign(edge.cell, raw.cell)
 		})
 
-		brain.sort()
+		brain.inputIds = json.inputIds
+		brain.outputIds = json.outputIds
 
 		return brain
 	}
 
 	clone() {
-		const json = this.toJSON()
-		return Brain.fromJSON(json)
+		return Brain.fromJSON(this.toJSON())
 	}
 }
