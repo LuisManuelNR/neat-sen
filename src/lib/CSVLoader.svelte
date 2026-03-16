@@ -35,8 +35,6 @@
 						const val = Number(values[i])
 						if (!Number.isNaN(val)) {
 							result[headers[i]].push(val)
-						} else {
-							result[headers[i]].push(false)
 						}
 					}
 				}
@@ -46,18 +44,18 @@
 		}
 	}
 
-	let fullData: CsvResult[] = []
+	let fullData: CsvResult = {}
 	let columns: string[] = []
 	let open = false
-	function openDialog(d: CsvResult[]) {
+	function openDialog(d: CsvResult) {
 		fullData = d
-		columns = Object.keys(d[0])
+		columns = Object.keys(d)
 		open = true
 	}
 
 	function setData(col: string) {
 		return () => {
-			onload(fullData.map((d) => d[col]))
+			onload(fullData[col])
 			open = false
 		}
 	}
