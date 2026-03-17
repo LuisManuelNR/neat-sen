@@ -8,7 +8,7 @@
 	import { CAxisX, CAxisY, CGraph, CPath } from '@chasi/ui/graph'
 	import { linearScale, max, min, randomColor } from '@chasi/ui/utils'
 
-	const W_SIZE = 10
+	const W_SIZE = 60
 	let train: number[] = []
 	let domain: [number, number] = [-1, 1]
 	// let realDomain: [number, number] = [0, 0]
@@ -19,6 +19,8 @@
 		const maxD = max(data)
 		// realDomain = [minD, maxD]
 		train = interval(data, 60, (p) => linearScale(p, minD, maxD, -1, 1))
+		// let i = 0
+		// train = interval(data, 60, (p) => Math.cos(i++ * 0.1))
 		testChunk = randomChunk()
 	}
 
