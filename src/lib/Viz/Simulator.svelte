@@ -82,7 +82,7 @@
 		charts={[fitness]}
 		height={400}
 	></LineChart>
-	<!-- <Network network={simulation.best?.brain}></Network> -->
+	<Network network={simulation.best?.brain}></Network>
 </div>
 
 <style>

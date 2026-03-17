@@ -11,13 +11,13 @@
 	const W_SIZE = 10
 	let train: number[] = []
 	let domain: [number, number] = [-1, 1]
-	let realDomain: [number, number] = [0, 0]
+	// let realDomain: [number, number] = [0, 0]
 	let testChunk: number[] = []
 
 	function onload(data: number[]) {
 		const minD = min(data)
 		const maxD = max(data)
-		realDomain = [minD, maxD]
+		// realDomain = [minD, maxD]
 		train = interval(data, 60, (p) => linearScale(p, minD, maxD, -1, 1))
 		testChunk = randomChunk()
 	}

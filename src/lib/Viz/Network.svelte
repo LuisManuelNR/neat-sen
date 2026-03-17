@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte'
+	import { onMount } from 'svelte'
 	import type { Brain } from '$lib/Network'
 
 	export let network: Brain | undefined = undefined
@@ -46,14 +46,14 @@
 	}
 
 	function layoutStep(net: Brain) {
-		const inputs = new Set(net.inputIds)
-		const outputs = new Set(net.outputIds)
+		// const inputs = net.inputIds
+		// const outputs = net.outputIds
 
-		const cx = width / 2
-		const cy = height / 2
+		// const cx = width / 2
+		// const cy = height / 2
 
-		const inputRadius = Math.min(width, height) * 0.45
-		const outputRadius = Math.min(width, height) * 0.08
+		// const inputRadius = Math.min(width, height) * 0.45
+		// const outputRadius = Math.min(width, height) * 0.08
 
 		// ===== REPULSION =====
 
@@ -169,10 +169,10 @@
 			ctx.beginPath()
 
 			// if (p2.x < p1.x) {
-			// const mx = (p1.x + p2.x) / 2
-			// const my = (p1.y + p2.y) / 2 - 40
-			// ctx.moveTo(p1.x, p1.y)
-			// ctx.quadraticCurveTo(mx, my, p2.x, p2.y)
+			// 	const mx = (p1.x + p2.x) / 2
+			// 	const my = (p1.y + p2.y) / 2 - 40
+			// 	ctx.moveTo(p1.x, p1.y)
+			// 	ctx.quadraticCurveTo(mx, my, p2.x, p2.y)
 			// } else {
 			ctx.moveTo(p1.x, p1.y)
 			ctx.lineTo(p2.x, p2.y)

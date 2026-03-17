@@ -106,6 +106,7 @@
 		if (showAll) {
 			spiders = population.slice()
 		} else {
+			best.seek()
 			spiders = [best]
 		}
 	}
@@ -114,7 +115,7 @@
 <CLabel label="show all" class="mb-4">
 	<input type="checkbox" bind:checked={showAll} />
 </CLabel>
-<Simulator population={500} {create} defaulEvolutionInterval={200} {onUpdate} {onNewGen}>
+<Simulator population={500} {create} defaulEvolutionInterval={200} {onUpdate}>
 	{#each spiders as spider, i}
 		<SpiderComponent go={spider.go} color="hsl(199.91deg 91.67% {spider.brain.fitness * 0.1}%)">
 			<!-- {spider.go.distanceTo(spider.target)} -->

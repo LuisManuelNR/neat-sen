@@ -15,7 +15,6 @@ export interface CellEdge {
 
 type Node = {
 	id: number
-	layer: number
 	cell: CellNode
 }
 
@@ -34,20 +33,20 @@ export class Brain {
 	incomings = new Map<number, Set<Edge>>()
 	outgoings = new Map<number, Set<Edge>>()
 
-	inputIds: number[] = []
-	outputIds: number[] = []
+	inputIds = new Set<number>()
+	outputIds = new Set<number>()
 
 	constructor(inputSize?: number, outputSize?: number) {
 		if (!inputSize || !outputSize) return
 
 		for (let i = 0; i < inputSize; i++) {
-			const n = this.addNode(0)
-			this.inputIds.push(n.id)
+			const n = this.addNode()
+			this.inputIds.add(n.id)
 		}
 
 		for (let i = 0; i < outputSize; i++) {
-			const n = this.addNode(1)
-			this.outputIds.push(n.id)
+			const n = this.addNode()
+			this.outputIds.add(n.id)
 
 			for (const input of this.inputIds) {
 				this.connect(input, n.id)
@@ -55,10 +54,9 @@ export class Brain {
 		}
 	}
 
-	addNode(layer: number, id?: number) {
+	addNode(id?: number) {
 		const node: Node = {
 			id: id ?? this.nodes.length,
-			layer,
 			cell: new Sum()
 		}
 
@@ -106,11 +104,10 @@ export class Brain {
 		const candidates: [number, number][] = []
 
 		for (const a of this.nodes) {
-			if (!a) continue
-
 			for (const b of this.nodes) {
-				if (!b) continue
 				if (a.id === b.id) continue
+				if (this.inputIds.has(a.id) && this.inputIds.has(b.id)) continue
+				if (this.outputIds.has(a.id) && this.outputIds.has(b.id)) continue
 
 				const edges = this.outgoings.get(a.id)!
 
@@ -135,16 +132,15 @@ export class Brain {
 	}
 
 	evaluate(inputs: number[], steps = 3) {
-		if (inputs.length !== this.inputIds.length) {
-			console.log(inputs)
+		if (inputs.length !== this.inputIds.size) {
 			throw new Error(
-				`Mismatch inputs size, inputs: ${inputs.length}, expect: ${this.inputIds.length}`
+				`Mismatch inputs size, inputs: ${inputs.length}, expect: ${this.inputIds.size}`
 			)
 		}
-
-		for (let i = 0; i < inputs.length; i++) {
-			this.nodes[this.inputIds[i]].cell.value = inputs[i]
-		}
+		let i = 0
+		this.inputIds.forEach(nid => {
+			this.nodes[nid].cell.value = inputs[i++]
+		})
 
 		for (let step = 0; step < steps; step++) {
 			for (const edge of this.edges) {
@@ -153,7 +149,7 @@ export class Brain {
 			}
 
 			for (const node of this.nodes) {
-				if (this.inputIds.includes(node.id)) continue
+				if (this.inputIds.has(node.id)) continue
 
 				const incoming = this.incomings.get(node.id)!
 				const xs = new Array(incoming.size)
@@ -196,8 +192,8 @@ export class Brain {
 				...e,
 				cell: { ...e.cell }
 			})),
-			inputIds: this.inputIds,
-			outputIds: this.outputIds
+			inputIds: [...this.inputIds],
+			outputIds: [...this.outputIds]
 		}
 	}
 
@@ -205,7 +201,7 @@ export class Brain {
 		const brain = new Brain()
 
 		json.nodes.forEach((raw) => {
-			const node = brain.addNode(raw.layer, raw.id)
+			const node = brain.addNode(raw.id)
 			Object.assign(node.cell, raw.cell)
 		})
 
@@ -214,8 +210,8 @@ export class Brain {
 			Object.assign(edge.cell, raw.cell)
 		})
 
-		brain.inputIds = json.inputIds
-		brain.outputIds = json.outputIds
+		brain.inputIds = new Set(json.inputIds)
+		brain.outputIds = new Set(json.outputIds)
 
 		return brain
 	}
