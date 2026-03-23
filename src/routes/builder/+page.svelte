@@ -12,10 +12,12 @@
 	function addNode() {
 		network.addRandomNode()
 		network = network
+		console.log(network)
 	}
 	function addConnection() {
 		network.addRandomConnection()
 		network = network
+		console.log(network)
 	}
 	function randomize() {
 		inputsSize = Math.floor(randomNumber(1, 5))
@@ -31,13 +33,14 @@
 		const repinga = Array(inputsSize).fill(0.2)
 		forwardResult = network.evaluate(repinga)
 		network = network
-		console.log(forwardResult)
 
-		// const clone = network.clone()
-		// const clonefff = clone.evaluate(repinga)
-		// console.log('PROPAGATE ES IGUAL?')
-		// console.log('original', forwardResult)
-		// console.log('clone', clonefff)
+		const clone = network.clone()
+		const clonefff = clone.evaluate(repinga)
+		console.log('PROPAGATE ES IGUAL?')
+		console.log('original', forwardResult)
+		console.log('clone', clonefff)
+		console.log(network)
+		console.log(clone)
 	}
 	let stopSimulation: number | undefined
 	let i = 0

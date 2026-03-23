@@ -2,26 +2,42 @@
 	import CSVLoader from '$lib/CSVLoader.svelte'
 	import type { Agent } from '$lib/NEAT/Simulator'
 	import { Brain } from '$lib/Network'
-	import { linspace, randomIndex } from '$lib/utils'
-	import LineChart from '$lib/Viz/LineChart.svelte'
+	import { createStandardizer, linspace, randomIndex } from '$lib/utils'
 	import Simulator from '$lib/Viz/Simulator.svelte'
+	import { CLabel } from '@chasi/ui'
 	import { CAxisX, CAxisY, CGraph, CPath } from '@chasi/ui/graph'
-	import { linearScale, max, min, randomColor } from '@chasi/ui/utils'
+	import { linearScale } from '@chasi/ui/utils'
 
-	const W_SIZE = 60
+	const W_SIZE = 1
+	const OUTPUT_SIZE = 1
+
+	const scaler = createStandardizer()
+
+	let real: number[] = []
+	let domainY: [number, number] = [-1, 1]
+	let domainX: [number, number] = [-1, 1]
+
 	let train: number[] = []
-	let domain: [number, number] = [-1, 1]
-	// let realDomain: [number, number] = [0, 0]
 	let testChunk: number[] = []
 
+	let stdMin = 0
+	let stdMax = 0
+
 	function onload(data: number[]) {
-		const minD = min(data)
-		const maxD = max(data)
-		// realDomain = [minD, maxD]
-		train = interval(data, 60, (p) => linearScale(p, minD, maxD, -1, 1))
-		// let i = 0
-		// train = interval(data, 60, (p) => Math.cos(i++ * 0.1))
+		const step = 60
+		const min = Math.min(...data)
+		const max = Math.max(...data)
+
+		real = interval(data, step)
+		domainX = [0, real.length]
+		domainY = [min, max]
+
+		const stdData = scaler.standardize(data)
+		stdMin = Math.min(...stdData)
+		stdMax = Math.max(...stdData)
+		train = interval(stdData, step, (p) => linearScale(p, stdMin, stdMax, -1, 1))
 		testChunk = randomChunk()
+		predict()
 	}
 
 	function chunk(start: number, size: number, data: number[]) {
@@ -29,7 +45,7 @@
 		return data.slice(startIndex, startIndex + size)
 	}
 
-	function interval(data: number[], step = 1, transform: (d: number) => number) {
+	function interval(data: number[], step = 1, transform: (d: number) => number = (n) => n) {
 		const result = []
 		for (let i = 0; i < data.length; i += step) {
 			const d = transform(data[i])
@@ -40,18 +56,27 @@
 
 	function randomChunk() {
 		const start = randomIndex(train)
-		return chunk(start, W_SIZE + 1, train)
+		return chunk(start, W_SIZE + OUTPUT_SIZE, train)
+	}
+
+	function computeError(predictions: number[], real: number[]) {
+		let error = 0
+		for (let i = 0; i < predictions.length; i++) {
+			error += Math.abs(real[i] - predictions[i])
+		}
+		return error / predictions.length
 	}
 
 	class Adivino implements Agent {
-		brain = new Brain(W_SIZE, 1)
+		brain = new Brain(W_SIZE, OUTPUT_SIZE)
 
 		train() {
-			const input = testChunk.slice(0, -1)
-			const [pred] = this.brain.evaluate(input)
+			const input = testChunk.slice(0, W_SIZE)
+			const real = testChunk.slice(W_SIZE, W_SIZE + OUTPUT_SIZE)
 
-			const real = testChunk[testChunk.length - 1]
-			const error = Math.abs(real - pred)
+			const predictions = this.brain.evaluate(input)
+			const error = computeError(predictions, real)
+
 			this.brain.fitness += 10 / (1 + error)
 		}
 	}
@@ -60,59 +85,55 @@
 		return new Adivino()
 	}
 
-	const domainX: [number, number] = [0, W_SIZE * 2]
-	let reals: number[] = []
-	let predictions: number[] = []
 	let index = 0
-	function onUpdate(_: Adivino[], best: Adivino) {
+	let predictions: number[] = []
+	let best = new Adivino()
+
+	function onUpdate(_: Adivino[], _best: Adivino) {
 		testChunk = randomChunk()
-		// const input = chunk(index, W_SIZE, train)
-		// for (let i = 0; i < W_SIZE; i++) {
-		// 	const [pred] = best.brain.evaluate(input)
-		// 	input.push(pred)
-		// 	input.shift()
-		// }
-		// reals = chunk(index, W_SIZE * 2, train)
-		// predictions = input
-		// index = (index + 1) % (train.length - W_SIZE * 2)
 	}
 
-	function onNewGen(_: Adivino[], best: Adivino) {
+	function onNewGen(_: Adivino[], _best: Adivino) {
+		best = _best
+	}
+
+	function predict() {
 		const input = chunk(index, W_SIZE, train)
-		for (let i = 0; i < W_SIZE; i++) {
-			const [pred] = best.brain.evaluate(input)
-			input.push(pred)
-			input.shift()
-		}
-		reals = chunk(index, W_SIZE * 2, train)
-		predictions = input
-		index = (index + 1) % (train.length - W_SIZE * 2)
+		const denormPrediction = best.brain
+			.evaluate(input)
+			.map((v) => linearScale(v, -1, 1, stdMin, stdMax))
+
+		predictions = [real[index + W_SIZE], ...scaler.destandardize(denormPrediction)]
+		requestAnimationFrame(predict)
 	}
 </script>
 
 <CSVLoader {onload}></CSVLoader>
 
-<Simulator population={300} {create} defaulEvolutionInterval={200} {onNewGen} {onUpdate}>
-	<LineChart domainY={domain} charts={[train]} height={400}></LineChart>
-	<CGraph height={400}>
+<CLabel>
+	<input type="range" min="0" max={real.length} bind:value={index} />
+</CLabel>
+
+<Simulator population={200} {create} defaulEvolutionInterval={200} {onUpdate} {onNewGen}>
+	<CGraph height={400} allowPanX allowZoomX marginLeft="60">
 		<!-- reales -->
 		<CPath
 			{domainX}
-			domainY={domain}
-			x={linspace(0, reals.length, reals.length)}
-			y={reals}
+			{domainY}
+			x={linspace(domainX[0], domainX[1], real.length)}
+			y={real}
 			color="#1aecbe"
 		></CPath>
 		<!-- prediction -->
 		<CPath
 			{domainX}
-			domainY={domain}
-			x={linspace(W_SIZE, W_SIZE * 2, predictions.length)}
+			{domainY}
+			x={linspace(index + W_SIZE, index + W_SIZE + predictions.length - 1, predictions.length)}
 			y={predictions}
 			color="#b01aec"
 		></CPath>
 
 		<CAxisX domain={domainX} ticksNumber={4}></CAxisX>
-		<CAxisY {domain} ticksNumber={4}></CAxisY>
+		<CAxisY domain={domainY} ticksNumber={4}></CAxisY>
 	</CGraph>
 </Simulator>

@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { BSpline } from '$lib/Network/cells/Cells'
 	import { CLabel } from '@chasi/ui'
-	import { runOnFrames } from '@chasi/ui/utils'
-	import { linspace } from '$lib/utils'
+	import { max, min, runOnFrames } from '@chasi/ui/utils'
+	import { linspace, random } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 
-	const DOMAIN = [-1, 1] as [number, number]
+	const r = random(-5, 5)
+	const DOMAIN = [-r, r] as [number, number]
 	let spline = new BSpline()
-	const x = linspace(DOMAIN[0], DOMAIN[1], 1000)
+	const x = linspace(DOMAIN[0], DOMAIN[1], 100)
 	$: y = x.map((v) => {
 		spline.evaluate(v)
 		return spline.value

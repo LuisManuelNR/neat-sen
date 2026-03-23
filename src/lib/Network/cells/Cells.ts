@@ -42,10 +42,10 @@ export class BSpline implements CellEdge {
 	}
 
 	mutate(): void {
-		const magnitude = 0.01
+		const magnitude = 0.1
 		const rp = randomIndex(this.p)
 		this.p[rp] += (Math.random() * 2 - 1) * magnitude
-		this.p[rp] = clamp(this.p[rp], -1, 1)
+		// this.p[rp] = clamp(this.p[rp], -1, 1)
 	}
 
 	split(): [BSpline, BSpline] {
@@ -58,17 +58,4 @@ export class BSpline implements CellEdge {
 		b2.p = this.p.map((val, i) => val - b1.p[i])
 		return [b1, b2]
 	}
-}
-
-function stable(inputs: number[]): number {
-	let sum = 0
-	let norm = 0
-
-	for (const x of inputs) {
-		sum += x
-		norm += Math.abs(x)
-	}
-
-	if (norm === 0) return 0
-	return sum / norm
 }

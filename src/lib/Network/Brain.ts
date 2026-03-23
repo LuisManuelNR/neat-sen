@@ -1,4 +1,4 @@
-import { randomElement, randomIndex } from '$lib/utils'
+import { randomElement } from '$lib/utils'
 import { BSpline, Sum } from './cells/Cells'
 
 export interface CellNode {
@@ -13,206 +13,209 @@ export interface CellEdge {
 	split(): [CellEdge, CellEdge]
 }
 
-type Node = {
+export type Node = {
 	id: number
+	incoming: Set<Edge>
+	outgoing: Set<Edge>
 	cell: CellNode
 }
 
-type Edge = {
-	source: number
-	target: number
+export type Edge = {
+	fromid: number
+	toid: number
 	cell: CellEdge
 }
 
 export class Brain {
 	fitness = 0
+	#improvement = 0
+	#lastFitness = 0
 
 	nodes: Node[] = []
-	edges: Edge[] = []
-
-	incomings = new Map<number, Set<Edge>>()
-	outgoings = new Map<number, Set<Edge>>()
-
-	inputIds = new Set<number>()
-	outputIds = new Set<number>()
+	sorted: Node[] = []
+	disconnectedPairs = new Set<string>() // from-to
 
 	constructor(inputSize?: number, outputSize?: number) {
 		if (!inputSize || !outputSize) return
-
+		// conectamos todas las entradas entre todas las salidas
+		const inputs = []
 		for (let i = 0; i < inputSize; i++) {
-			const n = this.addNode()
-			this.inputIds.add(n.id)
+			const nid = this.addNode()
+			inputs.push(nid)
 		}
 
 		for (let i = 0; i < outputSize; i++) {
-			const n = this.addNode()
-			this.outputIds.add(n.id)
-
-			for (const input of this.inputIds) {
-				this.connect(input, n.id)
+			const toid = this.addNode()
+			for (const fromid of inputs) {
+				this.connect(fromid, toid)
 			}
 		}
+		this.sorted = this.nodes.slice()
 	}
 
 	addNode(id?: number) {
 		const node: Node = {
 			id: id ?? this.nodes.length,
+			incoming: new Set(),
+			outgoing: new Set(),
 			cell: new Sum()
 		}
-
 		this.nodes[node.id] = node
-		this.incomings.set(node.id, new Set())
-		this.outgoings.set(node.id, new Set())
-
-		return node
+		return node.id
 	}
 
-	connect(source: number, target: number, cell: CellEdge = new BSpline()) {
-		const edge: Edge = { source, target, cell }
+	connect(fromid: number, toid: number, cell: CellEdge = new BSpline()) {
+		const edge: Edge = { fromid, toid, cell }
 
-		this.edges.push(edge)
-		this.incomings.get(target)!.add(edge)
-		this.outgoings.get(source)!.add(edge)
+		const from = this.nodes[fromid]
+		const to = this.nodes[toid]
+
+		from.outgoing.add(edge)
+		to.incoming.add(edge)
+
+		this.disconnectedPairs.delete(`${fromid}-${toid}`)
 
 		return edge
 	}
 
-	disconnect(index: number) {
-		const edge = this.edges[index]
+	disconnect(edge: Edge) {
+		const { fromid, toid } = edge
 
-		this.incomings.get(edge.target)!.delete(edge)
-		this.outgoings.get(edge.source)!.delete(edge)
+		const from = this.nodes[fromid]
+		const to = this.nodes[toid]
 
-		this.edges.splice(index, 1)
+		from.outgoing.delete(edge)
+		to.incoming.delete(edge)
+
+		this.disconnectedPairs.add(`${fromid}-${toid}`)
+	}
+
+	sort() {
+		const inDegree = new Map<Node, number>()
+		const queue: Node[] = []
+		const result: Node[] = []
+
+		for (const node of this.nodes) {
+			const deg = node.incoming.size
+			inDegree.set(node, deg)
+
+			if (deg === 0) {
+				queue.push(node)
+			}
+		}
+
+		while (queue.length > 0) {
+			const node = queue.shift()!
+			result.push(node)
+
+			for (const edge of node.outgoing) {
+				const to = this.nodes[edge.toid]
+				const next = to
+				const deg = inDegree.get(next)! - 1
+				inDegree.set(next, deg)
+
+				if (deg === 0) {
+					queue.push(next)
+				}
+			}
+		}
+
+		if (result.length !== this.nodes.length) {
+			throw new Error('Graph has cycles (expected DAG)')
+		}
+
+		this.sorted = result
 	}
 
 	addRandomNode() {
-		const index = randomIndex(this.edges)
-		const edge = this.edges[index]
+		const node = randomElement(this.nodes)
+		const edges = node.incoming.size > node.outgoing.size ? node.incoming : node.outgoing
+		if (!edges.size) return
+		const edge = randomElement([...edges])
+		const newNode = this.addNode()
 
 		const [c1, c2] = edge.cell.split()
 
-		const node = this.addNode(0)
-
-		this.connect(edge.source, node.id, c1)
-		this.connect(node.id, edge.target, c2)
-
-		this.disconnect(index)
+		this.connect(edge.fromid, newNode, c1)
+		this.connect(newNode, edge.toid, c2)
+		this.disconnect(edge)
+		this.sort()
 	}
 
 	addRandomConnection() {
-		const candidates: [number, number][] = []
-
-		for (const a of this.nodes) {
-			for (const b of this.nodes) {
-				if (a.id === b.id) continue
-				if (this.inputIds.has(a.id) && this.inputIds.has(b.id)) continue
-				if (this.outputIds.has(a.id) && this.outputIds.has(b.id)) continue
-
-				const edges = this.outgoings.get(a.id)!
-
-				let exists = false
-
-				for (const e of edges) {
-					if (e.target === b.id) {
-						exists = true
-						break
-					}
-				}
-
-				if (!exists) candidates.push([a.id, b.id])
-			}
-		}
-
-		if (!candidates.length) return
-
-		const [source, target] = randomElement(candidates)
-
-		this.connect(source, target)
+		if (!this.disconnectedPairs.size) return
+		const connid = randomElement([...this.disconnectedPairs])
+		const [fromid, toid] = connid.split('-')
+		this.connect(+fromid, +toid)
+		this.sort()
 	}
 
-	evaluate(inputs: number[], steps = 3) {
-		if (inputs.length !== this.inputIds.size) {
-			throw new Error(
-				`Mismatch inputs size, inputs: ${inputs.length}, expect: ${this.inputIds.size}`
-			)
-		}
-		let i = 0
-		this.inputIds.forEach(nid => {
-			this.nodes[nid].cell.value = inputs[i++]
-		})
-
-		for (let step = 0; step < steps; step++) {
-			for (const edge of this.edges) {
-				const source = this.nodes[edge.source]
-				edge.cell.evaluate(source.cell.value)
-			}
-
-			for (const node of this.nodes) {
-				if (this.inputIds.has(node.id)) continue
-
-				const incoming = this.incomings.get(node.id)!
-				const xs = new Array(incoming.size)
-
-				let i = 0
-				for (const e of incoming) {
-					xs[i++] = e.cell.value
-				}
-
-				node.cell.evaluate(xs)
-			}
-		}
-
+	evaluate(inputs: number[]) {
+		if (!this.sorted.length) this.sort()
 		const outputs: number[] = []
 
-		for (const id of this.outputIds) {
-			outputs.push(this.nodes[id].cell.value)
+		for (let i = 0; i < this.sorted.length; i++) {
+			const node = this.sorted[i]
+
+			if (node.incoming.size) {
+				const xs = Array.from(node.incoming, (e) => e.cell.value)
+				node.cell.evaluate(xs)
+			} else {
+				node.cell.value = inputs[node.id]
+			}
+
+			if (node.outgoing.size) {
+				for (const edge of node.outgoing) {
+					edge.cell.evaluate(node.cell.value)
+				}
+			} else {
+				outputs.push(node.cell.value)
+			}
 		}
 
 		return outputs
 	}
 
 	mutate() {
-		if (Math.random() < 0.1) return this.addRandomConnection()
-		if (Math.random() < 0.02) return this.addRandomNode()
-
-		if (Math.random() < 0.25) {
-			const edge = randomElement(this.edges)
+		if (Math.random() < 0.005) this.addRandomNode()
+		else if (Math.random() < 0.1) this.addRandomConnection()
+		else if (Math.random() < 0.6) {
+			const node = randomElement(this.sorted)
+			const edges = node.outgoing.size ? node.outgoing : node.incoming
+			const edge = randomElement([...edges])
 			edge.cell.mutate()
 		}
 	}
 
 	toJSON() {
 		return {
-			nodes: this.nodes.map((n) => ({
-				...n,
-				cell: { ...n.cell }
+			sorted: this.sorted.map((node) => ({
+				id: node.id,
+				outgoing: node.outgoing.values().map((e) => ({ ...e, cell: { ...e.cell } }))
 			})),
-			edges: this.edges.map((e) => ({
-				...e,
-				cell: { ...e.cell }
-			})),
-			inputIds: [...this.inputIds],
-			outputIds: [...this.outputIds]
+			disconnectedPairs: [...this.disconnectedPairs]
 		}
 	}
 
 	static fromJSON(json: ReturnType<Brain['toJSON']>) {
 		const brain = new Brain()
+		brain.disconnectedPairs = new Set(json.disconnectedPairs)
 
-		json.nodes.forEach((raw) => {
-			const node = brain.addNode(raw.id)
-			Object.assign(node.cell, raw.cell)
+		// // 1. crear nodos
+		json.sorted.forEach((raw) => {
+			brain.addNode(raw.id)
 		})
 
-		json.edges.forEach((raw) => {
-			const edge = brain.connect(raw.source, raw.target)
-			Object.assign(edge.cell, raw.cell)
+		// // // 2. reconstruir edges (solo outgoing)
+		json.sorted.forEach((raw) => {
+			raw.outgoing.forEach((edge) => {
+				const newEdge = brain.connect(edge.fromid, edge.toid)
+				Object.assign(newEdge.cell, edge.cell)
+			})
 		})
 
-		brain.inputIds = new Set(json.inputIds)
-		brain.outputIds = new Set(json.outputIds)
-
+		// // 3. recomputar orden
+		brain.sort()
 		return brain
 	}
 

@@ -5,6 +5,8 @@
 
 	type CsvResult = Record<string, number[]>
 
+	const COMAS = /,(?=(?:[^"]*"[^"]*")*[^"]*$)/
+
 	function loadCSV(callback: (result: CsvResult) => void) {
 		return (e: Event) => {
 			const input = e.target as HTMLInputElement
@@ -19,26 +21,22 @@
 
 			reader.onload = (event: ProgressEvent<FileReader>) => {
 				const text = event.target?.result as string
-				try {
-					const t = JSON.parse(text)
-					callback(t)
-					return
-				} catch (error) {}
-				const rows = text.split('\n')
-				const headers = rows[0].split(',')
+				const rows = text.split('\r\n')
+				const headers = rows[0].split(COMAS)
 				for (let h = 0; h < headers.length; h++) {
 					result[headers[h]] = []
 				}
 				for (let v = 1; v < rows.length - 2; v++) {
-					const values = rows[v].split(',')
+					const values = rows[v].split(COMAS)
 					for (let i = 0; i < values.length; i++) {
 						const val = Number(values[i])
-						if (!Number.isNaN(val)) {
+						if (!Number.isNaN(val) && headers[i]) {
 							result[headers[i]].push(val)
 						}
 					}
 				}
 				callback(result)
+				input.value = ''
 			}
 			reader.readAsText(file)
 		}
@@ -61,7 +59,7 @@
 	}
 </script>
 
-<input type="file" on:change={loadCSV(openDialog)} />
+<input type="file" on:change={loadCSV(openDialog)} accept=".csv,text/csv" />
 
 <CDialog bind:active={open}>
 	{#each columns as column}

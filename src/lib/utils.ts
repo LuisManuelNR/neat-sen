@@ -54,11 +54,17 @@ export function denormalize(normalizedValue: number, min: number, max: number): 
 	return normalizedValue * (max - min) + min
 }
 
-export function randomGaussian(mean: number, stdDev: number): number {
-	let u1 = Math.random()
-	let u2 = Math.random()
-	let z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2)
-	return z0 * stdDev + mean
+export function randomGaussian(mean: number, std: number): number {
+	let u = 0
+	let v = 0
+
+	// Evitar 0 porque log(0) no está definido
+	while (u === 0) u = Math.random()
+	while (v === 0) v = Math.random()
+
+	const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v)
+
+	return z * std + mean
 }
 
 export function clamp(value: number, min: number, max: number): number {
@@ -202,5 +208,132 @@ export function runEveryFrames(
 	// Devuelve una función para detener el loop
 	return () => {
 		stop = true
+	}
+}
+
+export function std(x: number[]): number {
+	const len = x.length
+	if (len < 2) return 0
+	const mu = x.reduce((a, c) => a + c, 0) / len
+	const ma = x.reduce((sum, value) => {
+		const diff = value - mu
+		return sum + diff * diff
+	}, 0)
+
+	const variance = ma / (len - 1)
+
+	return Math.sqrt(variance)
+}
+
+type Standardized = {
+	values: number[]
+	mu: number
+	sigma: number
+}
+
+export function standardize(x: number[]): Standardized {
+	const len = x.length
+
+	if (len === 0) {
+		return { values: [], mu: 0, sigma: 0 }
+	}
+
+	if (len === 1) {
+		return { values: [0], mu: x[0], sigma: 0 }
+	}
+
+	const mu = x.reduce((a, c) => a + c, 0) / len
+
+	const variance =
+		x.reduce((sum, value) => {
+			const diff = value - mu
+			return sum + diff * diff
+		}, 0) /
+		(len - 1)
+
+	const sigma = Math.sqrt(variance)
+
+	// ⚠️ evitar división por 0
+	if (sigma === 0) {
+		return {
+			values: new Array(len).fill(0),
+			mu,
+			sigma
+		}
+	}
+
+	return {
+		values: x.map((v) => (v - mu) / sigma),
+		mu,
+		sigma
+	}
+}
+
+export function destandardize(z: number[], mu: number, sigma: number): number[] {
+	// si sigma es 0, todos los valores originales eran iguales a mu
+	if (sigma === 0) {
+		return new Array(z.length).fill(mu)
+	}
+
+	return z.map((v) => v * sigma + mu)
+}
+
+export type Standardizer = {
+	standardize: (x: number[]) => number[]
+	destandardize: (z: number[]) => number[]
+	mu: () => number
+	sigma: () => number
+}
+
+export function createStandardizer(): Standardizer {
+	let _mu = 0
+	let _sigma = 0
+
+	function standardize(x: number[]): number[] {
+		const len = x.length
+
+		if (len === 0) {
+			_mu = 0
+			_sigma = 0
+			return []
+		}
+
+		if (len === 1) {
+			_mu = x[0]
+			_sigma = 0
+			return [0]
+		}
+
+		_mu = x.reduce((a, c) => a + c, 0) / len
+
+		const variance =
+			x.reduce((sum, value) => {
+				const diff = value - _mu
+				return sum + diff * diff
+			}, 0) /
+			(len - 1)
+
+		_sigma = Math.sqrt(variance)
+
+		if (_sigma === 0) {
+			return new Array(len).fill(0)
+		}
+
+		return x.map((v) => (v - _mu) / _sigma)
+	}
+
+	function destandardize(z: number[]): number[] {
+		if (_sigma === 0) {
+			return new Array(z.length).fill(_mu)
+		}
+
+		return z.map((v) => v * _sigma + _mu)
+	}
+
+	return {
+		standardize,
+		destandardize,
+		mu: () => _mu,
+		sigma: () => _sigma
 	}
 }

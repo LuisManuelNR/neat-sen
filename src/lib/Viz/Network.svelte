@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte'
-	import type { Brain } from '$lib/Network'
+	import type { Brain, Edge } from '$lib/Network'
+	import { randomGaussian } from '$lib/utils'
 
 	export let network: Brain | undefined = undefined
 	export let height = 500
@@ -14,10 +15,12 @@
 	const positions = new Map<number, { x: number; y: number }>()
 	const velocities = new Map<number, { x: number; y: number }>()
 
-	const repulsion = 4000
-	const springLength = 60
+	const repulsion = 500
+	const springLength = 6
 	const springStrength = 0.02
-	const damping = 0.6
+	const damping = 0.1
+
+	let edges = new Set<Edge>()
 
 	function setup(canvas: HTMLCanvasElement) {
 		const dpr = window.devicePixelRatio || 1
@@ -37,8 +40,8 @@
 			if (positions.has(node.id)) continue
 
 			positions.set(node.id, {
-				x: Math.random() * width,
-				y: Math.random() * height
+				x: width / 2 + randomGaussian(0, 10),
+				y: height / 2 + randomGaussian(0, 10)
 			})
 
 			velocities.set(node.id, { x: 0, y: 0 })
@@ -46,6 +49,7 @@
 	}
 
 	function layoutStep(net: Brain) {
+		edges = new Set()
 		// const inputs = net.inputIds
 		// const outputs = net.outputIds
 
@@ -58,6 +62,8 @@
 		// ===== REPULSION =====
 
 		for (const a of net.nodes) {
+			edges = edges.union(a.outgoing)
+
 			const pa = positions.get(a.id)!
 			const va = velocities.get(a.id)!
 
@@ -80,12 +86,12 @@
 
 		// ===== SPRINGS =====
 
-		for (const edge of net.edges) {
-			const p1 = positions.get(edge.source)!
-			const p2 = positions.get(edge.target)!
+		for (const edge of edges) {
+			const p1 = positions.get(edge.fromid)!
+			const p2 = positions.get(edge.toid)!
 
-			const v1 = velocities.get(edge.source)!
-			const v2 = velocities.get(edge.target)!
+			const v1 = velocities.get(edge.fromid)!
+			const v2 = velocities.get(edge.toid)!
 
 			let dx = p2.x - p1.x
 			let dy = p2.y - p1.y
@@ -118,36 +124,6 @@
 			vel.y *= damping
 			// }
 		}
-
-		// // ===== ANCHOR OUTPUTS (CENTRO) =====
-
-		// net.outputIds.forEach((id, i) => {
-		// 	const angle = (i / net.outputIds.length) * Math.PI * 2
-
-		// 	const pos = positions.get(id)!
-		// 	const vel = velocities.get(id)!
-
-		// 	pos.x = cx + Math.cos(angle) * outputRadius
-		// 	pos.y = cy + Math.sin(angle) * outputRadius
-
-		// 	vel.x = 0
-		// 	vel.y = 0
-		// })
-
-		// // ===== ANCHOR INPUTS (ANILLO EXTERIOR) =====
-
-		// net.inputIds.forEach((id, i) => {
-		// 	const angle = (i / net.inputIds.length) * Math.PI * 2
-
-		// 	const pos = positions.get(id)!
-		// 	const vel = velocities.get(id)!
-
-		// 	pos.x = cx + Math.cos(angle) * inputRadius
-		// 	pos.y = cy + Math.sin(angle) * inputRadius
-
-		// 	vel.x = 0
-		// 	vel.y = 0
-		// })
 	}
 
 	function render(net: Brain) {
@@ -158,9 +134,9 @@
 		const nodeRadius = 10
 
 		// edges
-		for (const edge of net.edges) {
-			const p1 = positions.get(edge.source)
-			const p2 = positions.get(edge.target)
+		for (const edge of edges) {
+			const p1 = positions.get(edge.fromid)
+			const p2 = positions.get(edge.toid)
 
 			if (!p1 || !p2) continue
 
@@ -169,10 +145,10 @@
 			ctx.beginPath()
 
 			// if (p2.x < p1.x) {
-			// 	const mx = (p1.x + p2.x) / 2
-			// 	const my = (p1.y + p2.y) / 2 - 40
-			// 	ctx.moveTo(p1.x, p1.y)
-			// 	ctx.quadraticCurveTo(mx, my, p2.x, p2.y)
+			// const mx = (p1.x + p2.x) / 2
+			// const my = (p1.y + p2.y) / 2 - 40
+			// ctx.moveTo(p1.x, p1.y)
+			// ctx.quadraticCurveTo(mx, my, p2.x, p2.y)
 			// } else {
 			ctx.moveTo(p1.x, p1.y)
 			ctx.lineTo(p2.x, p2.y)
@@ -195,7 +171,13 @@
 			ctx.fillStyle = '#2C303D'
 			ctx.fill()
 
-			ctx.strokeStyle = '#fff'
+			if (!node.incoming.size) {
+				ctx.strokeStyle = '#7291f9'
+			} else if (!node.outgoing.size) {
+				ctx.strokeStyle = '#1ae4a7'
+			} else {
+				ctx.strokeStyle = '#fff'
+			}
 			ctx.lineWidth = 2
 			ctx.stroke()
 
@@ -232,5 +214,7 @@
 <style>
 	canvas {
 		width: 100%;
+		border: 1px solid var(--s-1);
+		border-radius: var(--size-1);
 	}
 </style>

@@ -1,1 +1,1 @@
-export { Brain } from './Brain'
+export * from './Brain'
