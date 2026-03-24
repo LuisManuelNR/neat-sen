@@ -37,30 +37,26 @@
 		}
 
 		train(istrain = true) {
-			const sx = linearScale(this.go.x, 0, w, -1, 1)
-			const sy = linearScale(this.go.y, 0, h, -1, 1)
-			const tx = linearScale(this.target.x, 0, w, -1, 1)
-			const ty = linearScale(this.target.y, 0, h, -1, 1)
 			const angleScore = this.go.lookingAt(this.target)
-			const inputs = [angleScore, sx, sy, tx, ty]
+			const as = linearScale(angleScore, -1, 1, 0, 1)
+			const sx = linearScale(this.go.x, 0, w, 0, 1)
+			const sy = linearScale(this.go.y, 0, h, 0, 1)
+			const tx = linearScale(this.target.x, 0, w, 0, 1)
+			const ty = linearScale(this.target.y, 0, h, 0, 1)
+			const inputs = [as, sx, sy, tx, ty]
 
 			const outputs = this.brain.evaluate(inputs)
 			const [turn, accel] = outputs
-			this.go.angle += turn
-			this.speed += accel
-			// if (turn > 0.3) {
-			// 	this.go.angle += 0.2
-			// }
-			// if (turn < -0.3) {
-			// 	this.go.angle -= 0.2
-			// }
-			// if (accel > 0.3) {
-			// 	this.speed += 0.2
-			// }
-			// if (accel < -0.3) {
-			// 	this.speed -= 0.2
-			// }
-			this.speed = clamp(this.speed, 0, MAX_SPEED)
+
+			if (turn > 0.7) {
+				this.go.angle += 0.2
+			}
+			if (turn < 0.3) {
+				this.go.angle -= 0.2
+			}
+			if (accel > 0.5) {
+				this.speed = MAX_SPEED
+			}
 			this.go.forward(this.speed)
 
 			// fitness
@@ -78,11 +74,9 @@
 			const angleScore = this.go.lookingAt(this.target) // [-1,1]
 			const distance = this.go.distanceTo(this.target)
 
-			// reward por cercanía (normalizado)
-			const distanceScore = 5 / (1 + distance * 0.02)
-
 			// fitness incremental
-			this.brain.fitness += distanceScore * angleScore
+			this.brain.fitness += 5 / (1 + distance)
+			this.brain.fitness += linearScale(angleScore, -1, 1, 0, 1)
 
 			// objetivo alcanzado
 			if (distance < 60 && angleScore > 0.9) {

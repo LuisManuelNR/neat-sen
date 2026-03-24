@@ -5,16 +5,13 @@
 	import { linspace, random } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 
-	const r = random(-5, 5)
-	const DOMAIN = [-r, r] as [number, number]
+	const DOMAIN = [0, 1] as [number, number]
 	let spline = new BSpline()
 	const x = linspace(DOMAIN[0], DOMAIN[1], 100)
 	$: y = x.map((v) => {
 		spline.evaluate(v)
 		return spline.value
 	})
-
-	$: domainY = [-1, 1]
 
 	let stop: (() => void) | undefined
 
@@ -39,7 +36,7 @@
 			</CLabel>
 		</div>
 
-		<LineChart {domainY} domainX={DOMAIN} charts={[y]} height={500}></LineChart>
+		<LineChart domainY={DOMAIN} domainX={DOMAIN} charts={[y]} height={500}></LineChart>
 	</div>
 	<div>
 		<p>Basis functions</p>

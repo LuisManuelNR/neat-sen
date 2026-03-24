@@ -1,4 +1,4 @@
-import { clamp, randomGaussian, randomIndex, sum } from '$lib/utils'
+import { clamp, linspace, random, randomGaussian, randomIndex, sum } from '$lib/utils'
 import type { CellEdge, CellNode } from '../Brain'
 
 export class Clock implements CellNode {
@@ -20,42 +20,113 @@ export class Sum implements CellNode {
 		this.value = Math.tanh(s)
 	}
 }
+const knots = [
+	0, 0, 0, 0,
+	0.5,
+	1, 1, 1, 1
+]
+
+function findSpan(t: number, degree: number, knots: number[]) {
+	let low = degree
+	let high = knots.length - degree - 1
+
+	while (low <= high) {
+		const mid = (low + high) >> 1
+
+		if (t >= knots[mid] && t < knots[mid + 1]) {
+			return mid
+		} else if (t < knots[mid]) {
+			high = mid - 1
+		} else {
+			low = mid + 1
+		}
+	}
+
+	return knots.length - degree - 2
+}
 
 export class BSpline implements CellEdge {
 	value = 0
-	p = Array(5)
+	degree = 3
+
+	p: number[] = Array(20)
 		.fill(0)
-		.map((p) => (Math.random() * 2 - 1) * 0.8)
+		.map(() => Math.random())
+
+	// evalúa basis functions N_i,k(t)
+	private basisFunctions(span: number, t: number) {
+		const k = this.degree
+		const N = Array(k + 1).fill(0)
+
+		const left = Array(k + 1).fill(0)
+		const right = Array(k + 1).fill(0)
+
+		N[0] = 1
+
+		for (let j = 1; j <= k; j++) {
+			left[j] = t - knots[span + 1 - j]
+			right[j] = knots[span + j] - t
+
+			let saved = 0
+
+			for (let r = 0; r < j; r++) {
+				const denom = right[r + 1] + left[j - r]
+
+				const temp = denom === 0 ? 0 : N[r] / denom
+
+				N[r] = saved + right[r + 1] * temp
+				saved = left[j - r] * temp
+			}
+
+			N[j] = saved
+		}
+
+		return N
+	}
 
 	evaluate(x: number) {
-		const x2 = x * x
-		const x3 = x2 * x
-		const x4 = x3 * x
+		// clamp robusto
+		const t = clamp(x, knots[0], knots[knots.length - 1] - 1e-12)
 
-		const r =
-			this.p[0] * (x4 / 24 - x3 / 6 + x2 / 4 - x / 6 + 1 / 24) +
-			this.p[1] * (-x4 / 6 + x3 / 2 - x2 / 4 - x / 2 + 11 / 24) +
-			this.p[2] * (x4 / 4 - x3 / 2 - x2 / 4 + x / 2 + 11 / 24) +
-			this.p[3] * (-x4 / 6 + x3 / 6 + x2 / 4 + x / 6 + 1 / 24) +
-			this.p[4] * (x4 / 24)
-		this.value = r
+		const k = this.degree
+		const span = findSpan(t, k, knots)
+
+		const N = this.basisFunctions(span, t)
+
+		let result = 0
+
+		for (let j = 0; j <= k; j++) {
+			const idx = span - k + j
+
+			if (idx < 0 || idx >= this.p.length) {
+				continue
+			}
+
+			result += this.p[idx] * N[j]
+		}
+
+		this.value = result
 	}
 
 	mutate(): void {
-		const magnitude = 0.1
-		const rp = randomIndex(this.p)
-		this.p[rp] += (Math.random() * 2 - 1) * magnitude
-		// this.p[rp] = clamp(this.p[rp], -1, 1)
+		const i = randomIndex(this.p)
+
+		// mezcla exploración + explotación
+		if (Math.random() < 0.01) {
+			this.p[i] = Math.random()
+		} else {
+			this.p[i] += randomGaussian(0, 0.01)
+			this.p[i] = clamp(this.p[i], 0, 1)
+		}
 	}
 
 	split(): [BSpline, BSpline] {
 		const b1 = new BSpline()
 		const b2 = new BSpline()
-		b1.p = this.p.map((val) => {
-			const r = Math.random() // fracción aleatoria
-			return val * r
-		})
-		b2.p = this.p.map((val, i) => val - b1.p[i])
+
+		b1.p = this.p.map(v => v * Math.random())
+		b2.p = this.p.map((v, i) => v - b1.p[i])
+
 		return [b1, b2]
 	}
 }

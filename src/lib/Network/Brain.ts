@@ -28,8 +28,6 @@ export type Edge = {
 
 export class Brain {
 	fitness = 0
-	#improvement = 0
-	#lastFitness = 0
 
 	nodes: Node[] = []
 	sorted: Node[] = []

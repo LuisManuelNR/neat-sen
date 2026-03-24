@@ -57,14 +57,16 @@ export function denormalize(normalizedValue: number, min: number, max: number): 
 export function randomGaussian(mean: number, std: number): number {
 	let u = 0
 	let v = 0
+	let s = 0
 
-	// Evitar 0 porque log(0) no está definido
-	while (u === 0) u = Math.random()
-	while (v === 0) v = Math.random()
+	do {
+		u = Math.random() * 2 - 1
+		v = Math.random() * 2 - 1
+		s = u * u + v * v
+	} while (s === 0 || s >= 1)
 
-	const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v)
-
-	return z * std + mean
+	const mul = Math.sqrt(-2.0 * Math.log(s) / s)
+	return mean + std * u * mul
 }
 
 export function clamp(value: number, min: number, max: number): number {

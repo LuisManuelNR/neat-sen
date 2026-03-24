@@ -35,16 +35,15 @@ export class Simulation<T extends Agent> {
 
 	#updateStats() {
 		this.population.sort((a, b) => b.brain.fitness - a.brain.fitness)
-		const mean =
-			this.population.reduce((total, p) => total + p.brain.fitness, 0) / this.population.length
-		this.fitness = mean
+		this.fitness = this.population.reduce((total, p) => total + p.brain.fitness, 0) / this.population.length
 
 		const best = this.population[0]
-		if (best.brain.fitness > this.best.brain.fitness) {
-			const newbest = this.#create()
-			newbest.brain = best.brain.clone()
-			this.best = newbest
-		}
+		// if (best.brain.fitness > this.best.brain.fitness) {
+		const newbest = this.#create()
+		newbest.brain = best.brain.clone()
+		// newbest.brain.fitness = best.brain.fitness
+		this.best = newbest
+		// }
 	}
 
 	#normalizeFitness(group: Agent[]) {
