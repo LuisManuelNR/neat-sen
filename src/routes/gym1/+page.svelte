@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { Brain } from '$lib/Network'
-	import { linspace, randomGaussian } from '$lib/utils'
+	import { deepEqual, linspace, randomGaussian } from '$lib/utils'
 	import LineChart from '$lib/Viz/LineChart.svelte'
 	import Simulator from '$lib/Viz/Simulator.svelte'
 	import { CLabel } from '@chasi/ui'
 	import { linearScale, max, min } from '@chasi/ui/utils'
 
-	let x = 0
 	$: realX = linspace(0, 1, 100)
 	$: realY = realX.map((n) => testFunction(n))
 	$: domainX = [min(realX), max(realX)]
@@ -26,18 +25,18 @@
 			const real = testFunction(input)
 
 			const error = Math.abs(outputs[0] - real)
-			const accuracy = Math.exp(-error * 5)
+			const accuracy = 5 / (1 + error)
 
-			const sizePenalty = 1 / (1 + this.brain.nodes.length * 0.1)
+			// const sizePenalty = 1 / (1 + this.brain.nodes.length * 0.1)
 
-			this.brain.fitness += accuracy * sizePenalty
-			// this.brain.fitness += accuracy
+			// this.brain.fitness += accuracy * sizePenalty
+			this.brain.fitness += accuracy
 		}
 
 		evaluate() {
 			return realX.map((x) => {
-				// const n = linearScale(x, domainX[0], domainX[1], 0, 1)
-				const r = this.brain.evaluate([x])
+				const n = linearScale(x, domainX[0], domainX[1], 0, 1)
+				const r = this.brain.evaluate([n])
 				return r[0]
 			})
 		}
@@ -55,13 +54,9 @@
 			predictedY = [best.evaluate()]
 		}
 	}
-
-	function onUpdate(population: Agent[], best: Agent) {
-		// x += 0.001
-	}
 </script>
 
-<Simulator population={200} {create} defaulEvolutionInterval={40} {onNewGen} {onUpdate}>
+<Simulator population={500} {create} defaulEvolutionInterval={40} {onNewGen}>
 	<div class="d-grid gap-4">
 		<div>
 			<p>target</p>
@@ -71,7 +66,7 @@
 			<div class="d-flex align-center gap-2">
 				<p>output</p>
 				<CLabel label="show all">
-					<input type="checkbox" on:change={() => (showAll = !showAll)} />
+					<input type="checkbox" bind:checked={showAll} />
 				</CLabel>
 			</div>
 			<LineChart {domainX} {domainY} charts={predictedY} height={400}></LineChart>

@@ -189,7 +189,7 @@ export class Brain {
 		return {
 			sorted: this.sorted.map((node) => ({
 				id: node.id,
-				outgoing: node.outgoing.values().map((e) => ({ ...e, cell: { ...e.cell } }))
+				outgoing: node.outgoing.values().map((e) => ({ ...e, cell: structuredClone(e.cell) }))
 			})),
 			disconnectedPairs: [...this.disconnectedPairs]
 		}

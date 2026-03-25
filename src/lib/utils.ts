@@ -65,7 +65,7 @@ export function randomGaussian(mean: number, std: number): number {
 		s = u * u + v * v
 	} while (s === 0 || s >= 1)
 
-	const mul = Math.sqrt(-2.0 * Math.log(s) / s)
+	const mul = Math.sqrt((-2.0 * Math.log(s)) / s)
 	return mean + std * u * mul
 }
 
@@ -338,4 +338,87 @@ export function createStandardizer(): Standardizer {
 		mu: () => _mu,
 		sigma: () => _sigma
 	}
+}
+
+type DeepEqualResult = string | false
+
+export function deepEqual(a: any, b: any): DeepEqualResult {
+	const visitedPairs = new WeakMap<object, WeakSet<object>>()
+
+	function markVisited(a: object, b: object) {
+		if (!visitedPairs.has(a)) {
+			visitedPairs.set(a, new WeakSet())
+		}
+		visitedPairs.get(a)!.add(b)
+	}
+
+	function isVisited(a: object, b: object) {
+		return visitedPairs.get(a)?.has(b) ?? false
+	}
+
+	function helper(a: any, b: any, path: string): DeepEqualResult {
+		// solo objetos
+		if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) {
+			return false
+		}
+
+		// misma referencia → encontrado
+		if (a === b) {
+			return path || 'root'
+		}
+
+		// evitar ciclos
+		if (isVisited(a, b)) return false
+		markVisited(a, b)
+
+		// ---- MAP ----
+		if (a instanceof Map && b instanceof Map) {
+			if (a.size !== b.size) return false
+
+			for (const [keyA, valA] of a.entries()) {
+				if (!b.has(keyA)) continue
+
+				const valB = b.get(keyA)
+				const newPath = `${path}.(map:${String(keyA)})`
+
+				const result = helper(valA, valB, newPath)
+				if (result) return result
+			}
+
+			return false
+		}
+
+		// ---- SET ----
+		if (a instanceof Set && b instanceof Set) {
+			if (a.size !== b.size) return false
+
+			const arrA = Array.from(a)
+			const arrB = Array.from(b)
+
+			for (let i = 0; i < arrA.length; i++) {
+				const newPath = `${path}.(set:${i})`
+				const result = helper(arrA[i], arrB[i], newPath)
+				if (result) return result
+			}
+
+			return false
+		}
+
+		// ---- ARRAY u OBJETO ----
+		const keysA = Object.keys(a)
+		const keysB = Object.keys(b)
+
+		for (const key of keysA) {
+			if (!keysB.includes(key)) continue
+
+			const newPath = path ? `${path}.${key}` : key
+			const result = helper(a[key], b[key], newPath)
+
+			if (result) return result
+		}
+
+		return false
+	}
+
+	return helper(a, b, '')
 }

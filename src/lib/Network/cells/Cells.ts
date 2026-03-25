@@ -1,4 +1,13 @@
-import { clamp, linspace, random, randomGaussian, randomIndex, sum } from '$lib/utils'
+import {
+	clamp,
+	linspace,
+	random,
+	randomGaussian,
+	randomIndex,
+	relu,
+	sigmoid,
+	sum
+} from '$lib/utils'
 import type { CellEdge, CellNode } from '../Brain'
 
 export class Clock implements CellNode {
@@ -17,43 +26,18 @@ export class Sum implements CellNode {
 	value: number = 0
 	evaluate(xs: number[]) {
 		const s = sum(xs)
-		this.value = Math.tanh(s)
+		this.value = s / xs.length
 	}
-}
-const knots = [
-	0, 0, 0, 0,
-	0.5,
-	1, 1, 1, 1
-]
-
-function findSpan(t: number, degree: number, knots: number[]) {
-	let low = degree
-	let high = knots.length - degree - 1
-
-	while (low <= high) {
-		const mid = (low + high) >> 1
-
-		if (t >= knots[mid] && t < knots[mid + 1]) {
-			return mid
-		} else if (t < knots[mid]) {
-			high = mid - 1
-		} else {
-			low = mid + 1
-		}
-	}
-
-	return knots.length - degree - 2
 }
 
 export class BSpline implements CellEdge {
 	value = 0
 	degree = 3
 
-	p: number[] = Array(20)
-		.fill(0)
-		.map(() => Math.random())
+	p: number[] = Array(20).fill(0).map(Math.random)
 
-	// evalúa basis functions N_i,k(t)
+	constructor(public knots = createUniformKnots(this.p.length, this.degree)) {}
+
 	private basisFunctions(span: number, t: number) {
 		const k = this.degree
 		const N = Array(k + 1).fill(0)
@@ -64,8 +48,8 @@ export class BSpline implements CellEdge {
 		N[0] = 1
 
 		for (let j = 1; j <= k; j++) {
-			left[j] = t - knots[span + 1 - j]
-			right[j] = knots[span + j] - t
+			left[j] = t - this.knots[span + 1 - j]
+			right[j] = this.knots[span + j] - t
 
 			let saved = 0
 
@@ -86,11 +70,10 @@ export class BSpline implements CellEdge {
 
 	evaluate(x: number) {
 		// clamp robusto
-		const t = clamp(x, knots[0], knots[knots.length - 1] - 1e-12)
+		const t = clamp(x, this.knots[0], this.knots[this.knots.length - 1] - 1e-12)
 
 		const k = this.degree
-		const span = findSpan(t, k, knots)
-
+		const span = findSpan(t, k, this.knots)
 		const N = this.basisFunctions(span, t)
 
 		let result = 0
@@ -99,7 +82,7 @@ export class BSpline implements CellEdge {
 			const idx = span - k + j
 
 			if (idx < 0 || idx >= this.p.length) {
-				continue
+				throw new Error('Invalid B-spline configuration')
 			}
 
 			result += this.p[idx] * N[j]
@@ -110,23 +93,116 @@ export class BSpline implements CellEdge {
 
 	mutate(): void {
 		const i = randomIndex(this.p)
-
 		// mezcla exploración + explotación
 		if (Math.random() < 0.01) {
 			this.p[i] = Math.random()
 		} else {
-			this.p[i] += randomGaussian(0, 0.01)
+			this.p[i] += randomGaussian(0, 0.03)
 			this.p[i] = clamp(this.p[i], 0, 1)
 		}
 	}
 
 	split(): [BSpline, BSpline] {
-		const b1 = new BSpline()
-		const b2 = new BSpline()
+		const b1 = new BSpline(this.knots)
+		const b2 = new BSpline(this.knots)
 
-		b1.p = this.p.map(v => v * Math.random())
+		b1.p = this.p.map((v) => v * Math.random())
 		b2.p = this.p.map((v, i) => v - b1.p[i])
 
 		return [b1, b2]
 	}
+}
+
+function findSpan(t: number, degree: number, knots: number[]) {
+	let low = degree
+	let high = knots.length - degree - 1
+
+	while (low <= high) {
+		const mid = (low + high) >> 1
+
+		if (t >= knots[mid] && t < knots[mid + 1]) {
+			return mid
+		} else if (t < knots[mid]) {
+			high = mid - 1
+		} else {
+			low = mid + 1
+		}
+	}
+
+	return knots.length - degree - 2
+}
+
+function createUniformKnots(numControlPoints: number, degree: number): number[] {
+	const n = numControlPoints - 1
+	const m = n + degree + 1
+
+	const knots: number[] = []
+
+	// extremos (clamped)
+	for (let i = 0; i <= degree; i++) {
+		knots.push(0)
+	}
+
+	const interiorCount = m - 2 * (degree + 1) + 1
+
+	for (let i = 1; i < interiorCount; i++) {
+		knots.push(i / interiorCount)
+	}
+
+	for (let i = 0; i <= degree; i++) {
+		knots.push(1)
+	}
+
+	return knots
+}
+
+function createRandomKnots(numControlPoints: number, degree: number): number[] {
+	const n = numControlPoints - 1
+	const m = n + degree + 1
+
+	const knots: number[] = []
+
+	// extremos
+	for (let i = 0; i <= degree; i++) {
+		knots.push(0)
+	}
+
+	const interiorCount = m - 2 * (degree + 1) + 1
+
+	// generar interiores ordenados
+	const interior: number[] = []
+	for (let i = 0; i < interiorCount - 1; i++) {
+		interior.push(Math.random())
+	}
+
+	interior.sort((a, b) => a - b)
+
+	knots.push(...interior)
+
+	// extremos finales
+	for (let i = 0; i <= degree; i++) {
+		knots.push(1)
+	}
+
+	return knots
+}
+
+function mutateKnots(knots: number[], degree: number, sigma = 0.05): number[] {
+	const newKnots = [...knots]
+
+	const start = degree + 1
+	const end = knots.length - degree - 1
+
+	for (let i = start; i < end; i++) {
+		newKnots[i] += randomGaussian(0, sigma)
+	}
+
+	// mantener orden
+	const interior = newKnots.slice(start, end).sort((a, b) => a - b)
+
+	for (let i = start; i < end; i++) {
+		newKnots[i] = clamp(interior[i - start], 0, 1)
+	}
+
+	return newKnots
 }

@@ -15,8 +15,8 @@
 	const h = 600
 
 	class Spider implements Agent {
-		speed = 0
-		brain = new Brain(5, 2)
+		speed = MAX_SPEED
+		brain = new Brain(5, 1)
 		go = new GameObject(w, h)
 		target = new GameObject(w, h)
 
@@ -46,7 +46,7 @@
 			const inputs = [as, sx, sy, tx, ty]
 
 			const outputs = this.brain.evaluate(inputs)
-			const [turn, accel] = outputs
+			const [turn] = outputs
 
 			if (turn > 0.7) {
 				this.go.angle += 0.2
@@ -54,9 +54,12 @@
 			if (turn < 0.3) {
 				this.go.angle -= 0.2
 			}
-			if (accel > 0.5) {
-				this.speed = MAX_SPEED
-			}
+			// if (accel > 0.5) {
+			// 	this.speed += 0.2
+			// } else {
+			// 	this.speed -= 0.2
+			// }
+			// this.speed = clamp(this.speed, 0, MAX_SPEED)
 			this.go.forward(this.speed)
 
 			// fitness
@@ -75,7 +78,7 @@
 			const distance = this.go.distanceTo(this.target)
 
 			// fitness incremental
-			this.brain.fitness += 5 / (1 + distance)
+			this.brain.fitness += 60 / (1 + distance)
 			this.brain.fitness += linearScale(angleScore, -1, 1, 0, 1)
 
 			// objetivo alcanzado
@@ -109,7 +112,7 @@
 <CLabel label="show all" class="mb-4">
 	<input type="checkbox" bind:checked={showAll} />
 </CLabel>
-<Simulator population={500} {create} defaulEvolutionInterval={200} {onUpdate}>
+<Simulator population={300} {create} defaulEvolutionInterval={200} {onUpdate}>
 	{#each spiders as spider, i}
 		<SpiderComponent go={spider.go} color="hsl(199.91deg 91.67% {spider.brain.fitness * 0.1}%)">
 			<!-- {spider.go.distanceTo(spider.target)} -->
